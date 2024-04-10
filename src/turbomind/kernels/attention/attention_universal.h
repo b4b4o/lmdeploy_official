@@ -166,7 +166,10 @@ struct AttentionUniversal {
                           std::integral_constant<int, kVecSize>{});
             PRAGMA_UNROLL
             for (int s = 0; s < ITER_S; ++s) {
-                const int ti = (offset.y + s * Map::kDeltaS) / CTA_H + query_idx + history_len;
+                int ti = (offset.y + s * Map::kDeltaS) / CTA_H + query_idx + history_len; // = si(block内offset) + query_idx(这个block处理的开始相对值) + history_len
+                if(params.medusa_ti){
+                    ti = history_len + params.medusa_ti[(offset.y + s * Map::kDeltaS) / CTA_H + query_idx];
+                }
                 rope.apply(vec_Q[s][c], ti);
                 if constexpr (kProcessKV) {
                     static_assert(ITER_S == 1);
@@ -178,7 +181,10 @@ struct AttentionUniversal {
         if (params.use_logn_attn) {
             PRAGMA_UNROLL
             for (int s = 0; s < ITER_S; ++s) {
-                const int   ti = (offset.y + s * Map::kDeltaS) / CTA_H + query_idx + history_len;
+                int   ti = (offset.y + s * Map::kDeltaS) / CTA_H + query_idx + history_len;
+                if(params.medusa_ti){
+                    ti = history_len + params.medusa_ti[(offset.y + s * Map::kDeltaS) / CTA_H + query_idx];
+                }
                 LogNScaling logn_scaling(ti, params.max_position_embeddings);
                 PRAGMA_UNROLL
                 for (int c = 0; c < ITER_C; ++c) {
