@@ -114,6 +114,10 @@ void MedusaPathTree::dfs(){
 void MedusaPathTree::dfs(MedusaPathTreeNode* node, std::vector<int>& ancestor_ids){
     if(node){
         ancestor_ids.push_back(node->input_token_index_);
+        if(node->is_leaf_){
+            std::vector<int> input_token_index_of_path = ancestor_ids;
+            input_token_idx_of_paths.push_back(std::move(input_token_index_of_path));
+        }
         int &row = node->input_token_index_;
         #if 1
             std::cout << "===" << std::endl;
@@ -149,6 +153,13 @@ void MedusaPathTree::getOrCreateMedusaMask(int* medusa_mask, int &len){
     for(int i = 0; i < len_; i++){
         for(int j = 0; j < len_; j++){
             std::cout << medusaMask_[i * len_ + j] << " ";
+        }
+        std::cout << std::endl;
+    }
+    std::cout << "[debug] input_token_idx_of_paths = " << std::endl;
+    for(auto indices: input_token_idx_of_paths){
+        for(int v: indices){
+            std::cout << v << " ";
         }
         std::cout << std::endl;
     }

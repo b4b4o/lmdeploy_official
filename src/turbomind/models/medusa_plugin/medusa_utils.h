@@ -35,6 +35,7 @@ class MedusaPathTree{
         delete[] medusaTi_;
         medusaTi_ = nullptr;
     }
+    std::vector<std::vector<int>> input_token_idx_of_paths;
   	void insert(std::vector<int> path_tuple); // 插入单条路径
     void insert(std::vector<std::vector<int>> path_tuples);
     void dbg();
