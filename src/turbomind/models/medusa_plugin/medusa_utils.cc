@@ -73,7 +73,7 @@ void MedusaPathTree::bfs(MedusaPathTreeNode* root){
 
         node->input_token_index_ = len_++;
 #if 1
-        std::cout << node->input_token_index_ << std::endl;
+        std::cout << node->input_token_index_ << ":" << node->input_token_index_ << std::endl;
 #endif        
         ++depth_count[node->depth_];
 
