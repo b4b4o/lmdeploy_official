@@ -19,7 +19,8 @@ struct MedusaPathTreeNode{
   bool is_leaf_; // 是否为叶子节点（路径末尾）
 
 
-  std::unordered_map<int, MedusaPathTreeNode*> childs_; // 子节点
+//   std::unordered_map<int, MedusaPathTreeNode*> childs_; // 子节点
+  std::map<int, MedusaPathTreeNode*> childs_; // 子节点
   MedusaPathTreeNode(int top_k_idx, int depth, int input_token_index, bool is_leaf):top_k_idx_(top_k_idx), depth_(depth), input_token_index_(input_token_index), is_leaf_(is_leaf){}
 
 };
