@@ -90,7 +90,7 @@ void MedusaPathTree::bfs(MedusaPathTreeNode* root){
         int cnt = it.second;
         r = l + cnt;
         while(l < r){
-            medusaTi_[l] = pos;
+            medusaTi_[l++] = pos;
         }
         l = r;
     }
