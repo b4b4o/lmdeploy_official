@@ -14,5 +14,7 @@ int main(){
     tree.insert(path_tuples);
     tree.dbg();
 
+    tree.bfs();
+
     return 0;
 }

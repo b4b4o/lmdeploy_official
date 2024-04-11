@@ -7,6 +7,8 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <queue>
+#include <map>
 namespace turbomind {
 
 struct MedusaPathTreeNode{
@@ -27,22 +29,25 @@ class MedusaPathTree{
     MedusaPathTree() : root_(new MedusaPathTreeNode(0, 0, 0, false)) {}
     ~MedusaPathTree() {
         deleteTree(root_);
-        delete medusaMask_;
+        delete[] medusaMask_;
         medusaMask_ = nullptr;
-        delete medusaTi_;
+        delete[] medusaTi_;
         medusaTi_ = nullptr;
     }
   	void insert(std::vector<int> path_tuple); // 插入单条路径
     void insert(std::vector<std::vector<int>> path_tuples);
     void dbg();
-  	void getOrCreateMedusaTi();    // rope使用的 medusa_ti, bfs遍历得到
+    void bfs();
+  	void getOrCreateMedusaTi(int* medusa_ti, int &len);    // rope使用的 medusa_ti, bfs遍历得到
   	void getOrCreateMedusaMask();  // attention kernel 使用的 Causal Mask, dfs遍历得到
   private:
   	MedusaPathTreeNode* root_ = nullptr;
   	int* medusaMask_ = nullptr;
   	int* medusaTi_ = nullptr;
+    int len_;
   
     void dbg(MedusaPathTreeNode* node);
+    void bfs(MedusaPathTreeNode* root);
   	void deleteTree(MedusaPathTreeNode* root);
   	
 };
