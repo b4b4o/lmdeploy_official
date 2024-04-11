@@ -1,7 +1,12 @@
-#include <iostream>
-#include <vector>
-#include <unordered_map>
+#pragma once
 
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <unordered_map>
+#include <vector>
+#include <string>
+#include <algorithm>
 namespace turbomind {
 
 struct MedusaPathTreeNode{
@@ -44,15 +49,34 @@ class MedusaPathTree{
 
 class MedusaUtils {
 public:
-    MedusaUtils();
-    ~MedusaUtils();
-    MedusaUtils(const MedusaUtils&) = delete;
-    MedusaUtils& operator=(const MedusaUtils&) = delete;
+    MedusaUtils(std::string& medusa_path_filename, std::string &aim_model_name)
+    :medusa_path_(medusa_path_filename),
+    aim_model_name_(aim_model_name)
+    {
+        medusa_path_tuples_ =  getMedusaPathsFromLocalFile(medusa_path_, aim_model_name_);
+        path_num_ = medusa_path_tuples_.size();
+        // displayPathTuples(medusa_path_tuples_);
+    }
 
+    ~MedusaUtils(){}
+
+public:
+    // input:[medusa_head_num, batch_size, topk], output:[path_num, batch_size, medusa_head_num]
+    void getTokenIdsAccordingToPath(int* medusa_path_tokens_out, const size_t& path_num,const int* medusa_pred_tokens, std::vector<std::vector<int>>& path_tuples, const int batch_size, const int medusa_head_num, const int K);
+    void displayPathTuples(std::vector<std::vector<int>>& path_tuples);
+    std::vector<std::vector<int>>& getPathTuples();
+    size_t getPathNum();
+    std::pair<size_t, size_t> resultOffsetAndLength(int batch_idx, int path_idx, int batch_size, int medusa_head_num);
+public:
+    std::string medusa_path_;
+    std::string aim_model_name_;
+    std::vector<std::vector<int>> medusa_path_tuples_;
+    size_t path_num_;
 private:
-    //[42][5]
-    std::vector<std::vector<int>> path_tuples;
-    
+    void paddingTuple(std::vector<int>& tuple, int aim_size, int padding_value);
+    std::string removeAllWhiteSpaces(std::string str);
+    std::vector<int> parseTupleStr2TupleInt(const std::string& tuple_str);
+    std::vector<std::vector<int>> getMedusaPathsFromLocalFile(const std::string& local_path, const std::string& aim_model_name);
 };
 
 }  // namespace turbomind

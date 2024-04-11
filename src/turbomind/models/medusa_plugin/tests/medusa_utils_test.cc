@@ -6,5 +6,11 @@ int main(){
     tree.insert(path_tuples);
     tree.dbg();
 
+    std::string path_filename = "src/turbomind/models/medusa_plugin/medusa_choices.info";
+    std::string path_modelname = "vicuna_13b_stage1";
+
+    turbomind::MedusaUtils utils(path_filename, path_modelname);
+    utils.displayPathTuples(utils.medusa_path_tuples_);
+
     return 0;
 }
