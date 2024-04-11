@@ -115,9 +115,22 @@ void MedusaPathTree::dfs(MedusaPathTreeNode* node, std::vector<int>& ancestor_id
     if(node){
         ancestor_ids.push_back(node->input_token_index_);
         int &row = node->input_token_index_;
+        #if 1
+            std::cout << "===" << std::endl;
+            std::cout << std::endl;
+            std::cout << "depth = " << node->depth_ << std::endl;
+            std::cout << "topk = " << node->top_k_idx_ << std::endl;
+            std::cout << "ancestor_ids = ";
+        #endif
         for(const int &col : ancestor_ids){
             medusaMask_[row * len_ + col] = 1;
+            #if 1
+                std::cout << col << " ";
+            #endif
         }
+        #if 1
+            std::cout << std::endl;
+        #endif
         for(std::pair<int, MedusaPathTreeNode*> each_pair: node->childs_){
             MedusaPathTreeNode* child_node = each_pair.second;
             dfs(child_node, ancestor_ids);
