@@ -14,7 +14,11 @@ int main(){
     tree.insert(path_tuples);
     tree.dbg();
 
-    tree.bfs();
+    int* medusa_ti;
+    int* medusa_mask;
+    int len;
+    tree.getOrCreateMedusaTi(medusa_ti, len);
+    tree.getOrCreateMedusaMask(medusa_mask, len);
 
     return 0;
 }

@@ -19,7 +19,8 @@ struct MedusaPathTreeNode{
   bool is_leaf_; // 是否为叶子节点（路径末尾）
 
 
-  std::unordered_map<int, MedusaPathTreeNode*> childs_; // 子节点
+//   std::unordered_map<int, MedusaPathTreeNode*> childs_; // 子节点
+  std::map<int, MedusaPathTreeNode*> childs_; // 子节点
   MedusaPathTreeNode(int top_k_idx, int depth, int input_token_index, bool is_leaf):top_k_idx_(top_k_idx), depth_(depth), input_token_index_(input_token_index), is_leaf_(is_leaf){}
 
 };
@@ -38,8 +39,9 @@ class MedusaPathTree{
     void insert(std::vector<std::vector<int>> path_tuples);
     void dbg();
     void bfs();
+    void dfs();
   	void getOrCreateMedusaTi(int* medusa_ti, int &len);    // rope使用的 medusa_ti, bfs遍历得到
-  	void getOrCreateMedusaMask();  // attention kernel 使用的 Causal Mask, dfs遍历得到
+  	void getOrCreateMedusaMask(int* medusa_mask, int &len);  // attention kernel 使用的 Causal Mask, dfs遍历得到
   private:
   	MedusaPathTreeNode* root_ = nullptr;
   	int* medusaMask_ = nullptr;
@@ -48,6 +50,7 @@ class MedusaPathTree{
   
     void dbg(MedusaPathTreeNode* node);
     void bfs(MedusaPathTreeNode* root);
+    void dfs(MedusaPathTreeNode* node, std::vector<int>& ancestor_ids);
   	void deleteTree(MedusaPathTreeNode* root);
   	
 };
