@@ -47,6 +47,59 @@ void MedusaPathTree::dbg(MedusaPathTreeNode* node){
     }
 }
 
+void MedusaPathTree::getOrCreateMedusaTi(int* medusa_ti, int &len){
+    if(!medusaTi_){
+        bfs();
+    }
+    medusa_ti = medusaTi_;
+    len = len_;
+}
+void MedusaPathTree::bfs(){
+    bfs(root_);
+} 
+void MedusaPathTree::bfs(MedusaPathTreeNode* root){
+    std::queue<MedusaPathTreeNode*> q;
+    q.push(root);
+
+    std::map<int, int> depth_count;
+    len_ = 0;
+
+    while(!q.empty()){
+        MedusaPathTreeNode* node = q.front();
+        q.pop();
+        
+        node->input_token_index_ = len_++;
+        
+        ++depth_count[node->depth_];
+
+        for(std::pair<int, MedusaPathTreeNode*> each_pair: node->childs_){
+            MedusaPathTreeNode* child_node = each_pair.second;
+            q.push(child_node);
+        }
+    }
+    medusaTi_ = new int[len_];
+    medusaMask_ = new int[len_ * len_];
+
+    int l = 0, r = 0;
+    for(auto it:depth_count){
+        int pos = it.first;
+        int cnt = it.second;
+        r = l + cnt;
+        while(l < r){
+            medusaTi_[l] = pos;
+        }
+        l = r;
+    }
+#ifdef 1
+    std::cout << "[debug] medusaTi_ = ";
+    for(int i = 0; i < len_; i++){
+        std::cout << medusaTi_[i] << " ";
+    }
+    std::endl;
+#endif
+
+} 
+
 void MedusaUtils::getTokenIdsAccordingToPath(int* medusa_path_tokens_out, const size_t& path_num, const int* medusa_pred_tokens, std::vector<std::vector<int>>& path_tuples, const int batch_size, const int medusa_head_num, const int K){
     // input:[medusa_head_num, batch_size, topk], output:[path_num, batch_size, medusa_head_num]
 
