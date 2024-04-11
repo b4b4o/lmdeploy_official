@@ -68,7 +68,11 @@ void MedusaPathTree::bfs(MedusaPathTreeNode* root){
         MedusaPathTreeNode* node = q.front();
         q.pop();
         
+        if(!node)break;
+
+
         node->input_token_index_ = len_++;
+        std::cout << node->input_token_index_ << std::endl;
         
         ++depth_count[node->depth_];
 
