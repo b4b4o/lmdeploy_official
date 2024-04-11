@@ -32,12 +32,16 @@ void MedusaPathTree::dbg(){
 }
 void MedusaPathTree::dbg(MedusaPathTreeNode* node){
     if(node){
+        for(int i = 0; i < node->depth_; i++){
+            std::cout << "\t";
+        }
+        std::cout << node->top_k_idx_;
+        if(node->is_leaf_){
+            std::cout << "(l)"; 
+        }
+        std::cout << std::endl;
         for(std::pair<int, MedusaPathTreeNode*> each_pair: node->childs_){
             MedusaPathTreeNode* child_node = each_pair.second;
-            for(int i = 0; i < child_node->depth_; i++){
-                std::cout << "\t";
-            }
-            std::cout << child_node->top_k_idx_ << std::endl;
             dbg(child_node);
         }
     }

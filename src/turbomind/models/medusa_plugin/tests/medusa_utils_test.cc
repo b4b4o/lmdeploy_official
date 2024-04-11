@@ -2,15 +2,16 @@
 
 int main(){
     turbomind::MedusaPathTree tree;
-    std::vector<std::vector<int>> path_tuples{{1, 1, 1}, {1, 2}, {2, 1, 1}, {2, 1, 2}, {2, 3}};
-    tree.insert(path_tuples);
-    tree.dbg();
-
-    std::string path_filename = "src/turbomind/models/medusa_plugin/medusa_choices.info";
-    std::string path_modelname = "vicuna_13b_stage1";
+    
+    std::string path_filename = "/workdir/lmdeploy/src/turbomind/models/medusa_plugin/medusa_choices.info";
+    std::string path_modelname = "mc_sim_7b_63";
 
     turbomind::MedusaUtils utils(path_filename, path_modelname);
     utils.displayPathTuples(utils.medusa_path_tuples_);
+
+    // std::vector<std::vector<int>> path_tuples{{1, 1, 1}, {1, 2}, {2, 1, 1}, {2, 1, 2}, {2, 3}};
+    tree.insert(utils.medusa_path_tuples_);
+    tree.dbg();
 
     return 0;
 }
