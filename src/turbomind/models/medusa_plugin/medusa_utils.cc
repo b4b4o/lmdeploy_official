@@ -90,12 +90,12 @@ void MedusaPathTree::bfs(MedusaPathTreeNode* root){
         }
         l = r;
     }
-#ifdef 1
+#if 1
     std::cout << "[debug] medusaTi_ = ";
     for(int i = 0; i < len_; i++){
         std::cout << medusaTi_[i] << " ";
     }
-    std::endl;
+    std::cout << std::endl;
 #endif
 
 } 
