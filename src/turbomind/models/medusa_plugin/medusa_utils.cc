@@ -132,7 +132,7 @@ void MedusaPathTree::getOrCreateMedusaMask(int* medusa_mask, int &len){
     medusa_mask = medusaMask_;
     len = len_;
 #if 1
-    std::cout << "[debug] medusaMask_ = ";
+    std::cout << "[debug] medusaMask_ = " << std::endl;
     for(int i = 0; i < len_; i++){
         for(int j = 0; j < len_; j++){
             std::cout << medusaMask_[i * len_ + j] << " ";
