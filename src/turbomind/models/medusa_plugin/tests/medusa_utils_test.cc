@@ -20,5 +20,23 @@ int main(){
     tree.getOrCreateMedusaTi(medusa_ti, len);
     tree.getOrCreateMedusaMask(medusa_mask, len);
 
+    int input_len = 10;
+    int medusa_head_num = 5;
+    int path_num = 5;
+    std::unique_ptr<int[]> output_preds(new int[input_len]);
+    std::unique_ptr<int[]> output_ids(new int[path_num * (1 + medusa_head_num)]);
+
+    for(int i = 0; i < input_len; i++){
+        output_preds[i] = i;
+    }
+    tree.getOutputIds(output_preds.get(), output_ids.get(), medusa_head_num);
+    std::cout << "[debug] outputids." << std::endl;
+    for(int i = 0; i < path_num; i++){
+        for(int j = 0; j < (1 + medusa_head_num); j++){
+            std::cout << output_ids[i * (1 + medusa_head_num) + j] << " ";
+        }
+        std::cout << std::endl;
+    }
+
     return 0;
 }
