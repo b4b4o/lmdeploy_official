@@ -27,7 +27,7 @@ int main(){
     std::unique_ptr<int[]> output_ids(new int[path_num * (1 + medusa_head_num)]);
 
     for(int i = 0; i < input_len; i++){
-        output_preds[i] = i;
+        output_preds[i] = 10 + i;
     }
     tree.getOutputIds(output_preds.get(), output_ids.get(), medusa_head_num);
     std::cout << "[debug] outputids." << std::endl;
