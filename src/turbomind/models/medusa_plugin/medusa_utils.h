@@ -47,12 +47,13 @@ class MedusaPathTree{
   	void getOrCreateMedusaTi(int* medusa_ti, int &len);    // rope使用的 medusa_ti, bfs遍历得到
   	void getOrCreateMedusaMask(int* medusa_mask, int &len);  // attention kernel 使用的 Causal Mask, dfs遍历得到
     void getOutputIds(const int* output_preds, int* output_ids, const int medusa_head_num);
-  
+    void getBatchedOutputIds(const int* output_preds, int* output_ids_batched, const int medusa_head_num, const int batch_num);
   private:
   	MedusaPathTreeNode* root_ = nullptr;
   	int* medusaMask_ = nullptr;
   	int* medusaTi_ = nullptr;
-    int len_;
+    int len_; // input token len
+    int path_num_;
   
     void dbg(MedusaPathTreeNode* node);
     void bfs(MedusaPathTreeNode* root);

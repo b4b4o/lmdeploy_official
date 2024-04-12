@@ -148,6 +148,7 @@ void MedusaPathTree::getOrCreateMedusaMask(int* medusa_mask, int &len){
     }
     medusa_mask = medusaMask_;
     len = len_;
+    path_num_ = input_token_idx_of_paths.size();
 #if 1
     std::cout << "[debug] medusaMask_ = " << std::endl;
     for(int i = 0; i < len_; i++){
@@ -166,6 +167,10 @@ void MedusaPathTree::getOrCreateMedusaMask(int* medusa_mask, int &len){
 #endif
 }
 void MedusaPathTree::getOutputIds(const int* output_preds, int* output_ids, const int medusa_head_num){
+    // input:
+    //      output_preds : [input_len]
+    // output:
+    //      output_ids : [path_num, 1 + medusa_head_num]
     int col_base = 1 + medusa_head_num;
 
     auto to_dst_idx = [&col_base](int r, int c){
@@ -191,7 +196,20 @@ void MedusaPathTree::getOutputIds(const int* output_preds, int* output_ids, cons
 
         ++r;
     }
-    
+}
+
+void MedusaPathTree::getBatchedOutputIds(const int* output_preds_batched, int* output_ids_batched, const int medusa_head_num, const int batch_num){
+    // input:
+    //      output_preds : [batch_num, input_len]
+    // output:
+    //      output_ids : [batch_num, path_num, 1 + medusa_head_num]
+
+    int offset = path_num_ * (1 + medusa_head_num);
+    for(int bid = 0; bid < batch_num; bid++){
+        const int* output_preds = output_preds_batched + bid * len_;
+        int* output_ids = output_ids_batched + bid * offset;
+        getOutputIds(output_preds, output_ids, medusa_head_num);
+    }
 }
 
 void MedusaUtils::getTokenIdsAccordingToPath(int* medusa_path_tokens_out, const size_t& path_num, const int* medusa_pred_tokens, std::vector<std::vector<int>>& path_tuples, const int batch_size, const int medusa_head_num, const int K){
