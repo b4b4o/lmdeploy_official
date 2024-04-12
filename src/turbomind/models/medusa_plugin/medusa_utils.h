@@ -35,14 +35,18 @@ class MedusaPathTree{
         delete[] medusaTi_;
         medusaTi_ = nullptr;
     }
+   
     std::vector<std::vector<int>> input_token_idx_of_paths;
-  	void insert(std::vector<int> path_tuple); // 插入单条路径
+  	
+    void insert(std::vector<int> path_tuple); // 插入单条路径
     void insert(std::vector<std::vector<int>> path_tuples);
     void dbg();
     void bfs();
     void dfs();
   	void getOrCreateMedusaTi(int* medusa_ti, int &len);    // rope使用的 medusa_ti, bfs遍历得到
   	void getOrCreateMedusaMask(int* medusa_mask, int &len);  // attention kernel 使用的 Causal Mask, dfs遍历得到
+    void getOutputIds(const int* output_preds, int* output_ids, const int medusa_head_num);
+  
   private:
   	MedusaPathTreeNode* root_ = nullptr;
   	int* medusaMask_ = nullptr;

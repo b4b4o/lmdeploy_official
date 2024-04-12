@@ -165,6 +165,34 @@ void MedusaPathTree::getOrCreateMedusaMask(int* medusa_mask, int &len){
     }
 #endif
 }
+void MedusaPathTree::getOutputIds(const int* output_preds, int* output_ids, const int medusa_head_num){
+    int col_base = 1 + medusa_head_num;
+
+    auto to_dst_idx = [&col_base](int r, int c){
+        return r * col_base + c;
+    };
+
+    int r = 0, c = 0;
+    int index_now = 0;
+    int padding_val = output_preds[to_dst_idx(0, 0)];
+    
+    for(std::vector<int>& indices : input_token_idx_of_paths){
+        c = 0;
+        for(int each_index : indices){
+            index_now = to_dst_idx(r, c);
+            output_ids[index_now] = output_preds[index_now];
+            ++c;
+        }
+        while(c < col_base){ // paddings
+            index_now = to_dst_idx(r, c);
+            output_ids[index_now] = padding_val;
+            ++c;
+        }
+
+        ++r;
+    }
+    
+}
 
 void MedusaUtils::getTokenIdsAccordingToPath(int* medusa_path_tokens_out, const size_t& path_num, const int* medusa_pred_tokens, std::vector<std::vector<int>>& path_tuples, const int batch_size, const int medusa_head_num, const int K){
     // input:[medusa_head_num, batch_size, topk], output:[path_num, batch_size, medusa_head_num]
