@@ -174,7 +174,7 @@ void MedusaPathTree::getOutputIds(const int* output_preds, int* output_ids, cons
 
     int r = 0, c = 0;
     int index_now = 0;
-    int padding_val = output_preds[to_dst_idx(0, 0)];
+    int padding_val = output_preds[0];
     
     for(std::vector<int>& indices : input_token_idx_of_paths){
         c = 0;
