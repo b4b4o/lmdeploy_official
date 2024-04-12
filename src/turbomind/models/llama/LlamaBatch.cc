@@ -1614,7 +1614,9 @@ void LlamaBatch<T>::MedusaVerify(const int inited_index, const int max_init_ctx_
 
         invokeMedusaBatchMatch(medusa_inited_input_ids_buf_,
                                medusa_ref_output_ids_buf_,
+                               nullptr,
                                medusa_max_match_length_buf_,
+                               nullptr,
                                (1 + medusa_num_heads_) * inited_index,
                                1,
                                medusa_num_heads_,
