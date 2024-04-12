@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <queue>
 #include <map>
+#include <memory>
 namespace turbomind {
 
 struct MedusaPathTreeNode{
