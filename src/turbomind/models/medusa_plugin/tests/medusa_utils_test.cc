@@ -23,19 +23,28 @@ int main(){
     int input_len = 10;
     int medusa_head_num = 5;
     int path_num = 5;
-    std::unique_ptr<int[]> output_preds(new int[input_len]);
-    std::unique_ptr<int[]> output_ids(new int[path_num * (1 + medusa_head_num)]);
-
-    for(int i = 0; i < input_len; i++){
-        output_preds[i] = 10 + i;
-    }
-    tree.getOutputIds(output_preds.get(), output_ids.get(), medusa_head_num);
-    std::cout << "[debug] outputids." << std::endl;
-    for(int i = 0; i < path_num; i++){
-        for(int j = 0; j < (1 + medusa_head_num); j++){
-            std::cout << output_ids[i * (1 + medusa_head_num) + j] << " ";
+    int batch_num = 4;
+    std::unique_ptr<int[]> output_preds(new int[batch_num * input_len]);
+    std::unique_ptr<int[]> output_ids(new int[batch_num * path_num * (1 + medusa_head_num)]);
+    int base = 1;
+    for(int b = 0; b < batch_num; b++){
+        base *= 10;
+        for(int i = 0; i < input_len; i++){
+            output_preds[i + b * input_len] = i + base;
         }
-        std::cout << std::endl;
+    }
+    // tree.getOutputIds(output_preds.get(), output_ids.get(), medusa_head_num);
+    tree.getBatchedOutputIds(output_preds.get(), output_ids.get(), medusa_head_num, batch_num);
+    
+    std::cout << "[debug] outputids." << std::endl;
+    for(int b = 0; b < batch_num; b++){
+        std::cout << "batch " << b << std::endl;
+        for(int i = 0; i < path_num; i++){
+            for(int j = 0; j < (1 + medusa_head_num); j++){
+                std::cout << output_ids[i * (1 + medusa_head_num) + j + b * (path_num * (1 + medusa_head_num))] << " ";
+            }
+            std::cout << std::endl;
+        }
     }
 
     return 0;
