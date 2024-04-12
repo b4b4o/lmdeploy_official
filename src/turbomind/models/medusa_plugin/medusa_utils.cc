@@ -180,7 +180,7 @@ void MedusaPathTree::getOutputIds(const int* output_preds, int* output_ids, cons
         c = 0;
         for(int each_index : indices){
             index_now = to_dst_idx(r, c);
-            output_ids[index_now] = output_preds[index_now];
+            output_ids[index_now] = output_preds[each_index];
             ++c;
         }
         while(c < col_base){ // paddings
