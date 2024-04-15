@@ -80,10 +80,11 @@ int main(){
         }
     }
     std::unique_ptr<int[]> pseudo_inputs(new int[batch_num * len]);
-    int max_match_count = 2;
-    int max_match_idx = 2;
+    std::unique_ptr<int[]> max_match_count(new int[batch_num * len]{3, 2, 3, 2});
+    std::unique_ptr<int[]> max_match_idx(new int[batch_num * len]{0, 1, 2, 4});
+
     // tree.getPseudoIdsFromTree(medusa_preds.get(), medusa_head_num, top_k, output_ids.get(), max_match_count, max_match_idx, pseudo_inputs.get());
-    tree.getBatchedPseudoIdsFromTree(medusa_preds.get(), medusa_head_num, top_k, output_ids.get(), max_match_count, max_match_idx, pseudo_inputs.get(), batch_num);
+    tree.getBatchedPseudoIdsFromTree(medusa_preds.get(), medusa_head_num, top_k, output_ids.get(), max_match_count.get(), max_match_idx.get(), pseudo_inputs.get(), batch_num);
     std::cout << "[debug] pseudo_inputs: " << std::endl;
     for(int b = 0; b < batch_num; b++){
         std::cout << "---------------------------" << std::endl;

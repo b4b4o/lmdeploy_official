@@ -54,7 +54,7 @@ class MedusaPathTree{
     int  getMedusaPathNum();
     int  getMedusaInputLen();
     void getPseudoIdsFromTree(const int* medusa_preds, const int medusa_head_num, const int top_k, const int* output_ids, const int max_match_count, const int max_match_idx, int* pseudo_inputs);
-    void getBatchedPseudoIdsFromTree(const int* medusa_preds_batched, const int medusa_head_num, const int top_k, const int* output_ids_batched, const int max_match_count, const int max_match_idx, int* pseudo_inputs_batched, const int batch_size);
+    void getBatchedPseudoIdsFromTree(const int* medusa_preds_batched, const int medusa_head_num, const int top_k, const int* output_ids_batched, const int* max_match_count, const int* max_match_idx, int* pseudo_inputs_batched, const int batch_size);
   private:
   	MedusaPathTreeNode* root_ = nullptr;
   	int* medusaMask_ = nullptr;
