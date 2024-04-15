@@ -208,7 +208,7 @@ void MedusaPathTree::getBatchedOutputIds(const int* output_preds_batched, int* o
     //      output_ids : [batch_num, path_num, 1 + medusa_head_num]
 
     int offset = path_num_ * (1 + medusa_head_num);
-    bool is_calculated = true;
+    bool is_calculated = false;
     for(int bid = 0; bid < batch_num; bid++){
         const int* output_preds = output_preds_batched + bid * len_;
         int* output_ids = output_ids_batched + bid * offset;
@@ -216,6 +216,7 @@ void MedusaPathTree::getBatchedOutputIds(const int* output_preds_batched, int* o
             getOutputIds(output_preds, output_ids, nullptr, medusa_head_num);
         }else{
             getOutputIds(output_preds, output_ids, each_path_len, medusa_head_num);
+            is_calculated = false;
         }
     }
 }
