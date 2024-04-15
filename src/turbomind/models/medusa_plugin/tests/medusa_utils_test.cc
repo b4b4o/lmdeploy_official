@@ -70,6 +70,12 @@ int main(){
 
     const int top_k = 10;
     std::unique_ptr<int[]> medusa_preds(new int[medusa_head_num * top_k]);
+    int cnt = 0;
+    for(int i = 0; i < medusa_head_num; i++){
+        for(int j = 0; j < top_k; j++){
+            medusa_preds[i * top_k + j] = cnt++ ;
+        }
+    }
     std::unique_ptr<int[]> pseudo_inputs(new int[len]);
     int max_match_count = 2;
     int max_match_idx = 2;
