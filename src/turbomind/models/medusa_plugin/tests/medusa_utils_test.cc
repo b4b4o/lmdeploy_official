@@ -55,6 +55,7 @@ int main(){
     auto display_ids = [&](int* ids, int* lens, std::string name){
         std::cout << "[debug] " << name << "ids." << std::endl;
         for(int b = 0; b < batch_num; b++){
+            std::cout << "---------------------------" << std::endl; 
             std::cout << "batch " << b << std::endl;
             for(int i = 0; i < path_num; i++){
                 for(int j = 0; j < (1 + medusa_head_num); j++){
@@ -66,7 +67,7 @@ int main(){
         }
     };
     display_ids(output_ids.get(), output_each_path_len.get(), "output");
-    display_ids(input_ids.get(), input_each_path_len.get(), "input");
+    // display_ids(input_ids.get(), input_each_path_len.get(), "input");
 
     const int top_k = 10;
     std::unique_ptr<int[]> medusa_preds(new int[batch_num * medusa_head_num * top_k]);
