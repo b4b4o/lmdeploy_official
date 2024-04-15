@@ -50,11 +50,11 @@ class MedusaPathTree{
   	void getOrCreateMedusaTi(int* medusa_ti, int &len);    // rope使用的 medusa_ti, bfs遍历得到
   	void getOrCreateMedusaMask(int* medusa_mask, int &len);  // attention kernel 使用的 Causal Mask, dfs遍历得到, 也会得到路径上每个取top_k的记录 topk_value_of_paths
     void getOutputIds(const int* output_preds, int* output_ids, int* each_path_len, const int medusa_head_num);
-    void getBatchedOutputIds(const int* output_preds, int* output_ids_batched, int* each_path_len, const int medusa_head_num, const int batch_num);
+    void getBatchedOutputIds(const int* output_preds_batched, int* output_ids_batched, int* each_path_len, const int medusa_head_num, const int batch_num);
     int  getMedusaPathNum();
     int  getMedusaInputLen();
     void getPseudoIdsFromTree(const int* medusa_preds, const int medusa_head_num, const int top_k, const int* output_ids, const int max_match_count, const int max_match_idx, int* pseudo_inputs);
-    
+    void getBatchedPseudoIdsFromTree(const int* medusa_preds_batched, const int medusa_head_num, const int top_k, const int* output_ids_batched, const int max_match_count, const int max_match_idx, int* pseudo_inputs_batched, const int batch_size);
   private:
   	MedusaPathTreeNode* root_ = nullptr;
   	int* medusaMask_ = nullptr;
