@@ -33,26 +33,39 @@ int main(){
 
     std::unique_ptr<int[]> output_preds(new int[batch_num * input_len]);
     std::unique_ptr<int[]> output_ids(new int[batch_num * path_num * (1 + medusa_head_num)]);
+    std::unique_ptr<int[]> output_each_path_len(new int[path_num]);
+
+    std::unique_ptr<int[]> input_preds(new int[batch_num * input_len]);
+    std::unique_ptr<int[]> input_ids(new int[batch_num * path_num * (1 + medusa_head_num)]);
+    std::unique_ptr<int[]> input_each_path_len(new int[path_num]);
+
+
     int base = 1;
     for(int b = 0; b < batch_num; b++){
         base *= 10;
         for(int i = 0; i < input_len; i++){
             output_preds[i + b * input_len] = i + base;
+            input_preds[i + b * input_len] = i + base * 10;
         }
     }
     // tree.getOutputIds(output_preds.get(), output_ids.get(), medusa_head_num);
-    tree.getBatchedOutputIds(output_preds.get(), output_ids.get(), medusa_head_num, batch_num);
-    
-    std::cout << "[debug] outputids." << std::endl;
-    for(int b = 0; b < batch_num; b++){
-        std::cout << "batch " << b << std::endl;
-        for(int i = 0; i < path_num; i++){
-            for(int j = 0; j < (1 + medusa_head_num); j++){
-                std::cout << output_ids[i * (1 + medusa_head_num) + j + b * (path_num * (1 + medusa_head_num))] << " ";
+    tree.getBatchedOutputIds(output_preds.get(), output_ids.get(), output_each_path_len.get(), medusa_head_num, batch_num);
+    tree.getBatchedOutputIds(input_preds.get(), input_ids.get(), input_each_path_len.get(), medusa_head_num, batch_num);
+    auto display_ids = [&](int* ids, int* lens, std::string name){
+        std::cout << "[debug] " << name << "ids." << std::endl;
+        for(int b = 0; b < batch_num; b++){
+            std::cout << "batch " << b << std::endl;
+            for(int i = 0; i < path_num; i++){
+                for(int j = 0; j < (1 + medusa_head_num); j++){
+                    std::cout << ids[i * (1 + medusa_head_num) + j + b * (path_num * (1 + medusa_head_num))] << " ";
+                }
+                std::cout << std::endl;
+                std::cout << "lens = " << lens[i] << std::endl;
             }
-            std::cout << std::endl;
         }
-    }
+    };
+    display_ids(output_ids.get(), output_each_path_len.get(), "output");
+    display_ids(input_ids.get(), input_each_path_len.get(), "input");
 
     return 0;
 }
