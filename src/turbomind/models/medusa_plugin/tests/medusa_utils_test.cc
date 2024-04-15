@@ -89,7 +89,7 @@ int main(){
         std::cout << "---------------------------" << std::endl;
         std::cout << "batch : " << b << std::endl;
         for(int i = 0; i < len; i++){
-            std::cout << pseudo_inputs[i] << " ";
+            std::cout << pseudo_inputs[b * len + i] << " ";
         }std::cout << std::endl;
     }
     return 0;
