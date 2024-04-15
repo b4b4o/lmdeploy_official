@@ -51,6 +51,7 @@ int main(){
     // tree.getOutputIds(output_preds.get(), output_ids.get(), medusa_head_num);
     tree.getBatchedOutputIds(output_preds.get(), output_ids.get(), output_each_path_len.get(), medusa_head_num, batch_num);
     tree.getBatchedOutputIds(input_preds.get(), input_ids.get(), input_each_path_len.get(), medusa_head_num, batch_num);
+    
     auto display_ids = [&](int* ids, int* lens, std::string name){
         std::cout << "[debug] " << name << "ids." << std::endl;
         for(int b = 0; b < batch_num; b++){
@@ -67,5 +68,15 @@ int main(){
     display_ids(output_ids.get(), output_each_path_len.get(), "output");
     display_ids(input_ids.get(), input_each_path_len.get(), "input");
 
+    const int top_k = 10;
+    std::unique_ptr<int[]> medusa_preds(new int[medusa_head_num * top_k]);
+    std::unique_ptr<int[]> pseudo_inputs(new int[len]);
+    int max_match_count = 2;
+    int max_match_idx = 2;
+    tree.getPseudoIdsFromTree(medusa_preds.get(), medusa_head_num, top_k, output_ids.get(), max_match_count, max_match_idx, pseudo_inputs.get());
+    std::cout << "[debug] pseudo_inputs: " << std::endl;
+    for(int i = 0; i < len; i++){
+        std::cout << pseudo_inputs[i] << " ";
+    }std::cout << std::endl;
     return 0;
 }
