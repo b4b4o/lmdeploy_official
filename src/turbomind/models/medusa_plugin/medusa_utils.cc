@@ -70,11 +70,12 @@ void MedusaPathTree::bfs(MedusaPathTreeNode* root){
         
         if(!node)break;
 
+        topk_value_of_paths.push_back(node->top_k_idx_);
 
         node->input_token_index_ = len_++;
-#if 1
-        std::cout << node->top_k_idx_ << ":" << node->input_token_index_ << std::endl;
-#endif        
+// #if 1
+//         std::cout << node->top_k_idx_ << ":" << node->input_token_index_ << std::endl;
+// #endif        
         ++depth_count[node->depth_];
 
         for(std::pair<int, MedusaPathTreeNode*> each_pair: node->childs_){
@@ -95,13 +96,13 @@ void MedusaPathTree::bfs(MedusaPathTreeNode* root){
         }
         l = r;
     }
-#if 1
-    std::cout << "[debug] medusaTi_ = ";
-    for(int i = 0; i < len_; i++){
-        std::cout << medusaTi_[i] << " ";
-    }
-    std::cout << std::endl;
-#endif
+// #if 1
+//     std::cout << "[debug] medusaTi_ = ";
+//     for(int i = 0; i < len_; i++){
+//         std::cout << medusaTi_[i] << " ";
+//     }
+//     std::cout << std::endl;
+// #endif
 
 } 
 void MedusaPathTree::dfs(){
@@ -119,22 +120,22 @@ void MedusaPathTree::dfs(MedusaPathTreeNode* node, std::vector<int>& ancestor_id
             input_token_idx_of_paths.push_back(std::move(input_token_index_of_path));
         }
         int &row = node->input_token_index_;
-        #if 1
-            std::cout << "===" << std::endl;
-            std::cout << std::endl;
-            std::cout << "depth = " << node->depth_ << std::endl;
-            std::cout << "topk = " << node->top_k_idx_ << std::endl;
-            std::cout << "ancestor_ids = ";
-        #endif
+        // #if 1
+        //     std::cout << "===" << std::endl;
+        //     std::cout << std::endl;
+        //     std::cout << "depth = " << node->depth_ << std::endl;
+        //     std::cout << "topk = " << node->top_k_idx_ << std::endl;
+        //     std::cout << "ancestor_ids = ";
+        // #endif
         for(const int &col : ancestor_ids){
             medusaMask_[row * len_ + col] = 1;
-            #if 1
-                std::cout << col << " ";
-            #endif
+            // #if 1
+            //     std::cout << col << " ";
+            // #endif
         }
-        #if 1
-            std::cout << std::endl;
-        #endif
+        // #if 1
+        //     std::cout << std::endl;
+        // #endif
         for(std::pair<int, MedusaPathTreeNode*> each_pair: node->childs_){
             MedusaPathTreeNode* child_node = each_pair.second;
             dfs(child_node, ancestor_ids);
@@ -180,9 +181,9 @@ void MedusaPathTree::getOutputIds(const int* output_preds, int* output_ids, int*
     int r = 0, c = 0;
     int index_now = 0;
     int padding_val = output_preds[0];
-#if 1
-    padding_val = -1; // only for debug
-#endif
+// #if 1
+//     padding_val = -1; // only for debug
+// #endif
     for(std::vector<int>& indices : input_token_idx_of_paths){
         c = 0;
         for(int each_index : indices){
@@ -230,6 +231,36 @@ int MedusaPathTree::getMedusaPathNum(){
 int MedusaPathTree::getMedusaInputLen(){
     return len_;
 }
+
+void MedusaPathTree::getPseudoIdsFromTree(const int* medusa_preds, const int medusa_head_num, const int top_k, const int* output_ids, const int max_match_count, const int max_match_idx, int* pseudo_inputs){
+    // input:
+    //      medusa_preds: [medusa_head_num, topk]
+    //      output_ids:   [path_num, 1 + medusa_head_num]
+    // output:
+    //      pseudo_inputs:[1 + medusa_head_num]
+    int counter = 0;
+
+    const int& root_value = output_ids[max_match_idx * (1 + medusa_head_num) + max_match_count];
+    pseudo_inputs[counter++] = root_value;
+    
+    bool skip_root = true;
+    for(int& topk_value : topk_value_of_paths){
+        
+        if(skip_root){
+            skip_root = false;
+            continue;
+        }
+
+        const int& medusa_head_id = medusaTi_[counter] - 1;
+        const int& medusa_head_value = medusa_preds[medusa_head_id * top_k + topk_value];
+        pseudo_inputs[counter++] = medusa_head_value;
+    }
+    assert(counter == len_);
+
+}
+
+
+
 
 void MedusaUtils::getTokenIdsAccordingToPath(int* medusa_path_tokens_out, const size_t& path_num, const int* medusa_pred_tokens, std::vector<std::vector<int>>& path_tuples, const int batch_size, const int medusa_head_num, const int K){
     // input:[medusa_head_num, batch_size, topk], output:[path_num, batch_size, medusa_head_num]
