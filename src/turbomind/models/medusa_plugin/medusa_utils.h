@@ -48,6 +48,8 @@ class MedusaPathTree{
   	void getOrCreateMedusaMask(int* medusa_mask, int &len);  // attention kernel 使用的 Causal Mask, dfs遍历得到
     void getOutputIds(const int* output_preds, int* output_ids, const int medusa_head_num);
     void getBatchedOutputIds(const int* output_preds, int* output_ids_batched, const int medusa_head_num, const int batch_num);
+    int  getMedusaPathNum();
+    int  getMedusaInputLen();
   private:
   	MedusaPathTreeNode* root_ = nullptr;
   	int* medusaMask_ = nullptr;
