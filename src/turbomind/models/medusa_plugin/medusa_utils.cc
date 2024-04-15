@@ -237,7 +237,7 @@ void MedusaPathTree::getPseudoIdsFromTree(const int* medusa_preds, const int med
     //      medusa_preds: [medusa_head_num, topk]
     //      output_ids:   [path_num, 1 + medusa_head_num]
     // output:
-    //      pseudo_inputs:[1 + medusa_head_num]
+    //      pseudo_inputs:[len_]
     int counter = 0;
 
     const int& root_value = output_ids[max_match_idx * (1 + medusa_head_num) + max_match_count];
@@ -259,6 +259,21 @@ void MedusaPathTree::getPseudoIdsFromTree(const int* medusa_preds, const int med
 
 }
 
+void MedusaPathTree::getBatchedPseudoIdsFromTree(const int* medusa_preds_batched, const int medusa_head_num, const int top_k, const int* output_ids_batched, const int max_match_count, const int max_match_idx, int* pseudo_inputs_batched, const int batch_size){
+    // input:
+    //      medusa_preds_batched: [batch_size, medusa_head_num, topk]
+    //      output_ids_batched:   [batch_size, path_num, 1 + medusa_head_num]
+    // output:
+    //      pseudo_inputs_batched:[batch_size, len_]
+    for(int b_id = 0; b_id < batch_size; b_id++){
+        const int* medusa_preds = medusa_preds_batched + b_id * medusa_head_num * top_k;
+        const int* output_ids = output_ids_batched + b_id * path_num_ * (1 + medusa_head_num);
+        std::cout << "[getBatchedPseudoIdsFromTree]" << path_num_ << " " << medusa_head_num << std::endl;
+        int* pseudo_inputs = pseudo_inputs_batched + b_id * len_;
+        getPseudoIdsFromTree(medusa_preds, medusa_head_num, top_k, output_ids, max_match_count, max_match_idx, pseudo_inputs);
+    }
+    
+}
 
 
 

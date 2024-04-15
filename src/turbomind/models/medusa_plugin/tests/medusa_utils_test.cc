@@ -55,6 +55,7 @@ int main(){
     auto display_ids = [&](int* ids, int* lens, std::string name){
         std::cout << "[debug] " << name << "ids." << std::endl;
         for(int b = 0; b < batch_num; b++){
+            std::cout << "---------------------------" << std::endl; 
             std::cout << "batch " << b << std::endl;
             for(int i = 0; i < path_num; i++){
                 for(int j = 0; j < (1 + medusa_head_num); j++){
@@ -66,23 +67,30 @@ int main(){
         }
     };
     display_ids(output_ids.get(), output_each_path_len.get(), "output");
-    display_ids(input_ids.get(), input_each_path_len.get(), "input");
+    // display_ids(input_ids.get(), input_each_path_len.get(), "input");
 
     const int top_k = 10;
-    std::unique_ptr<int[]> medusa_preds(new int[medusa_head_num * top_k]);
+    std::unique_ptr<int[]> medusa_preds(new int[batch_num * medusa_head_num * top_k]);
     int cnt = 0;
-    for(int i = 0; i < medusa_head_num; i++){
-        for(int j = 0; j < top_k; j++){
-            medusa_preds[i * top_k + j] = cnt++ ;
+    for(int b = 0; b < batch_num; b++){
+        for(int i = 0; i < medusa_head_num; i++){
+            for(int j = 0; j < top_k; j++){
+                medusa_preds[b * medusa_head_num * top_k + i * top_k + j] = cnt++ ;
+            }
         }
     }
-    std::unique_ptr<int[]> pseudo_inputs(new int[len]);
+    std::unique_ptr<int[]> pseudo_inputs(new int[batch_num * len]);
     int max_match_count = 2;
     int max_match_idx = 2;
-    tree.getPseudoIdsFromTree(medusa_preds.get(), medusa_head_num, top_k, output_ids.get(), max_match_count, max_match_idx, pseudo_inputs.get());
+    // tree.getPseudoIdsFromTree(medusa_preds.get(), medusa_head_num, top_k, output_ids.get(), max_match_count, max_match_idx, pseudo_inputs.get());
+    tree.getBatchedPseudoIdsFromTree(medusa_preds.get(), medusa_head_num, top_k, output_ids.get(), max_match_count, max_match_idx, pseudo_inputs.get(), batch_num);
     std::cout << "[debug] pseudo_inputs: " << std::endl;
-    for(int i = 0; i < len; i++){
-        std::cout << pseudo_inputs[i] << " ";
-    }std::cout << std::endl;
+    for(int b = 0; b < batch_num; b++){
+        std::cout << "---------------------------" << std::endl;
+        std::cout << "batch : " << b << std::endl;
+        for(int i = 0; i < len; i++){
+            std::cout << pseudo_inputs[b * len + i] << " ";
+        }std::cout << std::endl;
+    }
     return 0;
 }
