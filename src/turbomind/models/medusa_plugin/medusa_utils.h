@@ -10,6 +10,8 @@
 #include <queue>
 #include <map>
 #include <memory>
+#include <cassert>
+
 namespace turbomind {
 
 struct MedusaPathTreeNode{
