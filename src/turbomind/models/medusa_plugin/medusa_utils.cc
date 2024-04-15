@@ -180,7 +180,9 @@ void MedusaPathTree::getOutputIds(const int* output_preds, int* output_ids, int*
     int r = 0, c = 0;
     int index_now = 0;
     int padding_val = output_preds[0];
-    
+#if 1
+    padding_val = -1; // only for debug
+#endif
     for(std::vector<int>& indices : input_token_idx_of_paths){
         c = 0;
         for(int each_index : indices){
@@ -189,7 +191,7 @@ void MedusaPathTree::getOutputIds(const int* output_preds, int* output_ids, int*
             ++c;
         }
         if(each_path_len){
-            each_path_len[r] = c;
+            each_path_len[r] = c - 1; // only consider medusa path len, not include root.
         }
         while(c < col_base){ // paddings
             index_now = to_dst_idx(r, c);
