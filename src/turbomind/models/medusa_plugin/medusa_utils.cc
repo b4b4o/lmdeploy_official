@@ -212,6 +212,14 @@ void MedusaPathTree::getBatchedOutputIds(const int* output_preds_batched, int* o
     }
 }
 
+int MedusaPathTree::getMedusaPathNum(){
+    return path_num_;
+}
+
+int MedusaPathTree::getMedusaInputLen(){
+    return len_;
+}
+
 void MedusaUtils::getTokenIdsAccordingToPath(int* medusa_path_tokens_out, const size_t& path_num, const int* medusa_pred_tokens, std::vector<std::vector<int>>& path_tuples, const int batch_size, const int medusa_head_num, const int K){
     // input:[medusa_head_num, batch_size, topk], output:[path_num, batch_size, medusa_head_num]
 

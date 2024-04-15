@@ -20,10 +20,17 @@ int main(){
     tree.getOrCreateMedusaTi(medusa_ti, len);
     tree.getOrCreateMedusaMask(medusa_mask, len);
 
-    int input_len = 10;
     int medusa_head_num = 5;
-    int path_num = 5;
     int batch_num = 4;
+    
+    const int input_len_verify = 10;
+    int input_len = tree.getMedusaInputLen();
+    assert(input_len == input_len_verify);
+    
+    const int path_num_verify = 5;
+    int path_num = tree.getMedusaPathNum();
+    assert(path_num_verify == path_num);
+
     std::unique_ptr<int[]> output_preds(new int[batch_num * input_len]);
     std::unique_ptr<int[]> output_ids(new int[batch_num * path_num * (1 + medusa_head_num)]);
     int base = 1;
