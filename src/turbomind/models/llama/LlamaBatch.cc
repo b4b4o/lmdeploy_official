@@ -1531,7 +1531,7 @@ void LlamaBatch<T>::MedusaCopy(const int mini_batch_size, const int first)
             medusa_all_hidden_states_buf_ + i * (1 + medusa_num_heads_) * hidden_units;
 
         if (inited) {
-            FT_CHECK(len == 1 + medusa_num_heads_);// todo:change to medusaUtil::len_
+            FT_CHECK(len == 1 + medusa_num_heads_);// todo: change to medusaUtil::len_
 
             // inited hidden states
             T* medusa_inited_hidden_states_buf_dst = medusa_inited_hidden_states_buf_ + index * len * hidden_units;// [batch_idx, (1 + medusa_head_num), hidden_units]
@@ -1574,7 +1574,7 @@ void LlamaBatch<T>::MedusaVerify(const int inited_index, const int max_init_ctx_
         }
 
         size_t hidden_size = model_->hidden_units_;
-
+        // bzw: I_all
         // [batch_size, 1 + medusa_num_heads, hidden_size] -> [1 + medusa_num_heads, batch_size, hidden_size]
         invokeTransposeAxis01(medusa_inited_hidden_states_buf_,
                               medusa_inited_hidden_states_buf_,
@@ -1583,12 +1583,13 @@ void LlamaBatch<T>::MedusaVerify(const int inited_index, const int max_init_ctx_
                               hidden_size,
                               stream_);
         int step = 0;
-        for (int i = 0; i < 1 + medusa_num_heads_; i++) {
+        for (int i = 0; i < 1 + medusa_num_heads_; i++) { //todo: 这里要改成len_
             // [1 + medusa_num_heads, batch_size, hidden_size] 取第i个头
             T* medusa_inited_hidden_states_buf_src = medusa_inited_hidden_states_buf_ + i * inited_index * hidden_size;
 
             bool should_stop{};
             // LMHead 一个batch的数据
+            // bzw: 这里一个个算每个batch的结果
             model_->postDecodeEmbedding(
                 medusa_logits_buf_, medusa_local_logits_buf_, medusa_inited_hidden_states_buf_src, inited_index);
             // sampling
@@ -1612,8 +1613,14 @@ void LlamaBatch<T>::MedusaVerify(const int inited_index, const int max_init_ctx_
         }
 
         // [1 + medusa_num_heads, batch_size, 1] -> [batch_size, 1 + medusa_num_heads, 1]
+        // todo: [len_, batch_size, 1] -> [batch_size, len_, 1]
         invokeTransposeAxis01(
             medusa_ref_output_ids_buf_, medusa_token_ids_buf_, 1 + medusa_num_heads_, inited_index, 1, stream_);
+
+        // todo: 这里需要根据packed结果取到多路径的结果
+        // todo:  getBatchedOutputIds(medusa_ref_output_ids_buf_) 输出的 [batch_size, len_] -> [batch_size, path_num_, 1 + medusa_head_num]
+        // todo:  getBatchedOutputIds(medusa_inited_input_ids_buf_) 输入的 [batch_size, len_] -> [batch_size, path_num_, 1 + medusa_head_num]
+
         // 两个[batch_size,  path_num, 1 + medusa_head_num]匹配
         // 结果存到 medusa_max_match_length_buf_ 中 [batch_size]
         invokeMedusaBatchMatch(medusa_inited_input_ids_buf_,
@@ -1638,16 +1645,19 @@ void LlamaBatch<T>::MedusaGenerate(const int inited_index, const int new_index, 
     if (batch_size != 0) {
         // gather last verified hidden states
         int hidden_size                           = model_->hidden_units_;
-        T*  medusa_verified_hidden_states_buf_dst = medusa_verified_hidden_states_buf_; // [batch_size, hidden_units] 空
+        T*  medusa_verified_hidden_states_buf_dst = medusa_verified_hidden_states_buf_; // [batch_size, hidden_units] 空，存放每个batch的I_last
         int inited_idx                            = 0;
+
+        // 得到了每一个batch的最后一位匹配结果 // bzw: I_last
+        // todo: 这里需要改成匹配的最后那个idx
         for (int i = 0; i < batch_size; i++) {
-            // LLM的hidden输出
+            // LLM的hidden输出 I
             T* medusa_all_hidden_states_buf_src =
                 medusa_all_hidden_states_buf_ + i * (1 + medusa_num_heads_) * hidden_size; // [batch_id, (1+head), hidden_units]
             if (medusa_state_vec_[i].inited) { // 不是第一次, 拿匹配到的最后一位 I_match_last
                 // inited seq last verified
                 medusa_verified_hidden_states_buf_dst =
-                    Copy(medusa_all_hidden_states_buf_src + h_medusa_max_match_length_buf_[inited_idx++] * hidden_size,
+                    Copy(medusa_all_hidden_states_buf_src + h_medusa_max_match_length_buf_[inited_idx++] * hidden_size, // todo: here
                          hidden_size,
                          medusa_verified_hidden_states_buf_dst); // 对应batch_id, 匹配的head 的 hidden_units, I_verify
             }
@@ -1657,7 +1667,6 @@ void LlamaBatch<T>::MedusaGenerate(const int inited_index, const int new_index, 
                     Copy(medusa_all_hidden_states_buf_src, hidden_size, medusa_verified_hidden_states_buf_dst);
             }
         }
-        // 得到了每一个batch的最后一位匹配结果 I
 
         // lm head linear
         if (medusa_logits_buf_ == nullptr) {
@@ -1672,7 +1681,7 @@ void LlamaBatch<T>::MedusaGenerate(const int inited_index, const int new_index, 
             }
         }
         bool should_stop{};
-        // after LLM(batch, hidden) -> after LM_Head(batch, vocab_size) I -> P
+        // after LLM(batch, hidden) -> after LM_Head(batch, vocab_size) //bzw: I_last -> P_last
         model_->postDecodeEmbedding(
             medusa_logits_buf_, medusa_local_logits_buf_, medusa_verified_hidden_states_buf_, batch_size);
 
@@ -1694,19 +1703,26 @@ void LlamaBatch<T>::MedusaGenerate(const int inited_index, const int new_index, 
                               session_len_ * 2,
                               batch_size);
 
-        // medusa forward
+        // medusa forward //bzw: I_last -> M_1, M_2, M_3, ...
         // after LLM(batch, hidden) -> after Medusa(batch, medusa_head_num, vocab_size) -> (batch, medusa_head_num, top1)
-        // todo:这里返回的应该是 [batch, head_num, top10]
+        // todo: 这里返回的应该是 [batch, head_num, top10]
         model_->medusaForward(medusa_topk_output_ids_buf_, medusa_verified_hidden_states_buf_, batch_size);
-        // todo:这里通过Utils处理下，拿到 packed_path
+        // todo: 这里通过Utils处理下，拿到 packed_path [batch, len_ - 1]
+        // todo: MedusaTree::getBatchedPseudoIdsFromTree()
+        // (batch, medusa_head_num, 1) -> (medusa_head_num, batch, 1)
         invokeTransposeAxis01(
             medusa_topk_output_ids_buf_, medusa_topk_output_ids_buf_, batch_size, medusa_num_heads_, 1, stream_);
+        // bzw: 最后的排布 [batch个P_last]  [batch个M_1] [batch个M_2] ... 
+        // bzw: 内存排布 [session_len, batch]
+        // todo:         [batch * P_last] [batch * pos_1] [batch * pos_2]
         // LMHead [batch, 1]
         Copy(medusa_token_ids_buf_, batch_size, token_ids_buf_ + step * batch_size); // [batch * session_len * 2] -> [batch * session_len * 2] LM_Head的输出
         // MedusaHead [batch, head]
-        // todo:这里要改成 [batch, path_packed_num]
+        // todo: 这里要改成 [batch, len_]
         Copy(medusa_topk_output_ids_buf_, batch_size * medusa_num_heads_, token_ids_buf_ + (step + 1) * batch_size); // [batch * medusa_head] -> [batch * session_len * 2] medusa的输出
+        // todo: 这里改成 + len_
         invokePlusScalar(sequence_lengths_, 1 + medusa_num_heads_, batch_size, stream_); //[batch] 加上输出的长度
+        // todo: 同样的改成 + len_
         step += 1 + medusa_num_heads_;
     }
 }
