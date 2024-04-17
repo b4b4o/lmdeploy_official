@@ -127,7 +127,11 @@ private:
                         size_t           token_num,
                         int              dc_batch_size,
                         int              pf_batch_size,
-                        const Sequence** sequences);
+                        const Sequence** sequences,
+                        const int*       medusa_ti = nullptr,
+                        const int*       medusa_mask = nullptr,
+                        const int*       enable_medusa = nullptr,
+                        const int        medusa_input_len = 64);
 
     void postDecodeEmbedding(float* logits, float* local_logits, const T* decoder_output, int batch_size);
 

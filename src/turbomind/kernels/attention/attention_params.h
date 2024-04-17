@@ -70,7 +70,9 @@ struct AttentionParams {
 
     // medusa
     int *medusa_ti;
-    int *medusa_Mask;
+    int *medusa_mask;
+    int *enable_medusa;
+    int medusa_input_len;
 
     // debug
     float* qk;
