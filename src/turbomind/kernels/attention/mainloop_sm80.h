@@ -103,7 +103,10 @@ struct Mainloop<Sm80_CpAsync<Stages>, Impl_> {
                         int            mask_iter,
                         float          qk_scale,
                         SharedStorage& storage,
-                        const StoreS&  store_S)
+                        const StoreS&  store_S,
+                        const int*     medusa_mask,
+                        int            history_len,
+                        int            medusa_input_len)
     {
         gmem_K.SetSmem(storage.KV);
         gmem_V.SetSmem(storage.KV);
@@ -177,7 +180,7 @@ struct Mainloop<Sm80_CpAsync<Stages>, Impl_> {
             });
 
             if constexpr (is_mask) {
-                ApplyCasualMask(frag_S, offset_Q, offset_K);
+                ApplyCasualMask(frag_S, offset_Q, offset_K, medusa_mask, history_len, medusa_input_len);
             }
 
             Impl::Softmax<is_mask>(frag_S, frag_M, frag_L, frag_O, qk_scale);
@@ -228,7 +231,10 @@ struct Mainloop<Sm80_CpAsync<Stages>, Impl_> {
                         int            mask_iter,
                         float          qk_scale,
                         SharedStorage& storage,
-                        const StoreS&  store_S)
+                        const StoreS&  store_S,
+                        const int*     medusa_mask,
+                        int            history_len,
+                        int            medusa_input_len)
     {
         gmem_K.SetSmem(storage.KV);
         gmem_V.SetSmem(storage.KV);
@@ -285,7 +291,7 @@ struct Mainloop<Sm80_CpAsync<Stages>, Impl_> {
             prefetch_K(0);
 
             if constexpr (is_mask) {
-                ApplyCasualMask(frag_S, offset_Q, offset_K);
+                ApplyCasualMask(frag_S, offset_Q, offset_K, medusa_mask, history_len, medusa_input_len);
             }
 
             Impl::Softmax<is_mask>(frag_S, frag_M, frag_L, frag_O, qk_scale);
@@ -448,11 +454,28 @@ struct Mainloop<Sm80_CpAsync<Stages>, Impl_> {
         Impl::Sync();
     }
 
-    __device__ void ApplyCasualMask(FragS& frag_S, int offset_Q, int offset_K)
+    __device__ void ApplyCasualMask(FragS& frag_S, int offset_Q, int offset_K, const int* medusa_mask, int his_len, int input_len)
     {
         Impl::ForeachS(frag_S, [&](int hi, int qi, int si, int ri, float& score) {
-            if (offset_Q + qi < offset_K + si) {
-                score -= std::numeric_limits<float>::infinity();
+            if(medusa_mask){
+                int rel_pos_q = offset_Q + qi - his_len;
+                int rel_pos_k = offset_K + si - his_len;
+                if(0 <= rel_pos_q && rel_pos_q < input_len && 0 <= rel_pos_k && rel_pos_k < input_len){
+                    //走medusa
+                    if(medusa_mask[rel_pos_q * input_len + rel_pos_k] == 0){
+                        score -= std::numeric_limits<float>::infinity();
+                    }
+                }else{
+                    // 走原来的
+                    if (offset_Q + qi < offset_K + si) {
+                        // 这里不可能走到
+                        score -= std::numeric_limits<float>::infinity();
+                    }
+                }
+            }else{
+                if (offset_Q + qi < offset_K + si) {
+                    score -= std::numeric_limits<float>::infinity();
+                }
             }
         });
     }

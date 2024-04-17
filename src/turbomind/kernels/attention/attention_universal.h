@@ -355,6 +355,11 @@ struct AttentionUniversal {
         int tile_iter = iter_end - iter_begin - 1;
         int mask_iter = (CTA_Q + CTA_S - 1) / CTA_S + 1;
 
+        const int* medusa_mask = nullptr;
+        if(params.enable_medusa[batch_idx]){
+            medusa_mask = params.medusa_mask;
+        }
+
         Mainloop mainloop;
         mainloop(frag_Q,
                  gmem_K,
@@ -371,7 +376,10 @@ struct AttentionUniversal {
                  mask_iter,
                  params.inv_sqrt_dh,
                  storage,
-                 StoreS(params, query_idx, head_idx, batch_idx, context_len));
+                 StoreS(params, query_idx, head_idx, batch_idx, context_len),
+                 medusa_mask,
+                 history_len,
+                 params.medusa_input_len);
 
         if constexpr (Impl::kWarpCntS > 1) {
             Impl::Merge(frag_O, frag_M, frag_L, params.inv_sqrt_dh, storage);

@@ -1809,7 +1809,13 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
                             max_k);
             }
         }
-
+        //todo: MedusaUtil::getOrCreateMedusaTi(medusa_ti, len)
+        //todo: MedusaUtil::getOrCreateMedusaMask(medusa_mask, len)
+        int* medusa_ti     = nullptr;
+        int* medusa_mask   = nullptr;
+        int* enable_medusa = nullptr;
+        int medusa_input_len = 64;
+        
         model_->forwardUnified(decoder_output_buf_ + first * model_->hidden_units_,
                                context_decoder_output_buf_,  // temp
                                context_decoder_input_buf_,   // temp
@@ -1823,7 +1829,11 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
                                token_count,
                                dc_batch_size,
                                pf_batch_size,
-                               sequences.data());
+                               sequences.data(),
+                               medusa_ti,
+                               medusa_mask,
+                               enable_medusa, // according to init/first
+                               medusa_input_len);
 
         if (iter == 0) {
             // compute logits of inputs if requested
