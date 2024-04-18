@@ -1835,41 +1835,44 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
         std::cout << "for test. " << std::endl;
         std::cout <<  "medusa_input_len = " << medusa_input_len << std::endl; 
         medusa_ti = std::make_unique<int[]>(medusa_input_len);
+        int* medusa_ti_ptr = medusa_ti.get();
         medusa_mask = std::make_unique<int[]>(medusa_input_len * medusa_input_len);
+        int* medusa_mask_ptr = medusa_mask.get();
         enable_medusa = std::make_unique<int[]>(mini_batch_size);
+        int* enable_medusa_ptr = enable_medusa.get();
         // faked medusa_ti
         for(int i = 0; i < medusa_input_len; i++){
-            medusa_ti[i] = i;
+            medusa_ti_ptr[i] = i;
             for(int j = 0; j < medusa_input_len; j++){
                 if(i >= j){
-                    medusa_mask[i * medusa_input_len + j] = 1;
+                    medusa_mask_ptr[i * medusa_input_len + j] = 1;
                 }
             }
         }
-        enable_medusa[0] = 1;
+        enable_medusa_ptr[0] = 1;
 
         std::cout << "fake medusa_mask:" << std::endl;
         for(int i = 0; i < medusa_input_len; i++){
             for(int j = 0; j < medusa_input_len; j++){
-                std::cout << medusa_mask[i * medusa_input_len + j]  << " ";
+                std::cout << medusa_mask_ptr[i * medusa_input_len + j]  << " ";
             }
             std::cout << std::endl;
         }
 
         std::cout << "fake medusa_ti:" << std::endl;
         for(int i = 0; i < medusa_input_len; i++){
-            std::cout << medusa_ti[i] << " ";
+            std::cout << medusa_ti_ptr[i] << " ";
         }std::cout << std::endl;
 
         std::cout << "fake enable_medusa:" << std::endl;
         for(int i = 0; i < mini_batch_size; i++){
-            std::cout << medusa_ti[i] << " ";
+            std::cout << medusa_ti_ptr[i] << " ";
         }std::cout << std::endl;
         
         // to Device
-        Copy(medusa_ti, medusa_input_len, d_medusa_ti_);
-        Copy(medusa_mask, medusa_input_len, d_medusa_mask_);
-        Copy(enable_medusa, medusa_input_len, d_enable_medusa_);
+        Copy(medusa_ti_ptr, medusa_input_len, d_medusa_ti_);
+        Copy(medusa_mask_ptr, medusa_input_len, d_medusa_mask_);
+        Copy(enable_medusa_ptr, medusa_input_len, d_enable_medusa_);
 
         // medusa_utils_->getMedusaMask(medusa_mask);
         // medusa_utils_->getMedusaTi(medusa_ti);
