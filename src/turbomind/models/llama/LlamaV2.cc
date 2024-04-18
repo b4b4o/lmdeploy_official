@@ -264,7 +264,7 @@ void LlamaV2<T>::forwardUnified(T*               out,
                      {"cu_block_counts", {MEMORY_GPU, TYPE_INT32, {bsz}, cu_block_cnts}},
                      {"medusa_ti", {MEMORY_GPU, TYPE_INT32, {medusa_input_len}, medusa_ti}},
                      {"medusa_mask", {MEMORY_GPU, TYPE_INT32, {medusa_input_len * medusa_input_len}, medusa_mask}},
-                     {"medusa_input_len", {MEMORY_GPU, TYPE_INT32, {1}, &medusa_input_len}},
+                     {"medusa_input_len", {MEMORY_CPU, TYPE_INT32, {1}, &medusa_input_len}},
                      {"enable_medusa", {MEMORY_GPU, TYPE_INT32, {bsz}, enable_medusa}},
                      };
 

@@ -1819,10 +1819,10 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
         int* medusa_mask   = nullptr;
         int* enable_medusa = nullptr; // this should set by inited/first.
         int  medusa_input_len = 0;
-
-        medusa_utils_->getMedusaMask(medusa_mask);
-        medusa_utils_->getMedusaTi(medusa_ti);
-        medusa_utils_->getInputLen(medusa_input_len);
+        std::cout << "for test. " << std::endl;
+        // medusa_utils_->getMedusaMask(medusa_mask);
+        // medusa_utils_->getMedusaTi(medusa_ti);
+        // medusa_utils_->getInputLen(medusa_input_len);
         
         model_->forwardUnified(decoder_output_buf_ + first * model_->hidden_units_,
                                context_decoder_output_buf_,  // temp
