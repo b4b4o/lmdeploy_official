@@ -1866,7 +1866,7 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
 
         std::cout << "fake enable_medusa:" << std::endl;
         for(int i = 0; i < mini_batch_size; i++){
-            std::cout << medusa_ti_ptr[i] << " ";
+            std::cout << enable_medusa_ptr[i] << " ";
         }std::cout << std::endl;
         
         std::cout << "copy to device." << std::endl;
@@ -1963,7 +1963,7 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
     /// ! increase the counters
     g.step += 1;
 
-    // PrintDecodeTokens(token_ids_buf_, g.step, active_size, stream_, "Forward");
+    PrintDecodeTokens(token_ids_buf_, g.step, active_size, stream_, "Forward");
 
     return !should_stop;
 }
