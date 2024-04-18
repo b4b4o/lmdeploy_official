@@ -1869,15 +1869,16 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
             std::cout << medusa_ti_ptr[i] << " ";
         }std::cout << std::endl;
         
+        std::cout << "copy to device." << std::endl;
         // to Device
         Copy(medusa_ti_ptr, medusa_input_len, d_medusa_ti_);
         Copy(medusa_mask_ptr, medusa_input_len, d_medusa_mask_);
-        Copy(enable_medusa_ptr, medusa_input_len, d_enable_medusa_);
+        Copy(enable_medusa_ptr, mini_batch_size, d_enable_medusa_);
 
         // medusa_utils_->getMedusaMask(medusa_mask);
         // medusa_utils_->getMedusaTi(medusa_ti);
         // medusa_utils_->getInputLen(medusa_input_len);
-        
+        std::cout << "after copy to D" << std::endl;
         model_->forwardUnified(decoder_output_buf_ + first * model_->hidden_units_,
                                context_decoder_output_buf_,  // temp
                                context_decoder_input_buf_,   // temp
@@ -1896,7 +1897,7 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
                                d_medusa_mask_,
                                d_enable_medusa_, // according to init/first
                                medusa_input_len);
-
+        std::cout << "after call forward" << std::endl;
         if (iter == 0) {
             // compute logits of inputs if requested
             OutputContextLogits(context_decoder_output_buf_, decode_indices, decode_lengths, sequences);
