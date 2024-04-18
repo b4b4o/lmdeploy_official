@@ -1827,10 +1827,10 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
         }
         //todo: MedusaUtil::getOrCreateMedusaTi(medusa_ti, len)
         //todo: MedusaUtil::getOrCreateMedusaMask(medusa_mask, len)
-        std::unique_ptr<int> medusa_ti     = nullptr;
-        std::unique_ptr<int> medusa_mask     = nullptr;
+        std::unique_ptr<int[]> medusa_ti     = nullptr;
+        std::unique_ptr<int[]> medusa_mask     = nullptr;
         // this should set by inited/first.
-        std::unique_ptr<int> enable_medusa     = nullptr;
+        std::unique_ptr<int[]> enable_medusa     = nullptr;
         int medusa_input_len = *(h_input_length_buf_ + first);
         std::cout << "for test. " << std::endl;
         std::cout <<  "medusa_input_len = " << medusa_input_len << std::endl; 
