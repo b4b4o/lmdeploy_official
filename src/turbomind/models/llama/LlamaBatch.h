@@ -13,6 +13,7 @@
 #include "src/turbomind/utils/allocator.h"
 #include "src/turbomind/utils/cublasMMWrapper.h"
 #include "src/turbomind/utils/cuda_utils.h"
+#include "src/turbomind/models/medusa_plugin/medusa_utils.h"
 #include <condition_variable>
 #include <mutex>
 #include <type_traits>
@@ -340,6 +341,8 @@ private:
     int* h_medusa_max_match_length_buf_{};
 
     int* medusa_topk_output_ids_buf_{};
+
+    std::unique_ptr<MedusaUtils> medusa_utils_;
 };
 
 }  // namespace turbomind

@@ -1006,6 +1006,10 @@ LlamaBatch<T>::LlamaBatch(
 
     AllocateBuffer(max_batch_size_, session_len_);
     AllocatePersistantBuffer(max_batch_size_);
+    // todo: fix this to config.
+    std::string medusa_path_filename = "/workdir/lmdeploy/src/turbomind/models/medusa_plugin/medusa_choices.info";
+    std::string aim_model_name = "mc_sim_7b_63";
+    medusa_utils_ = std::make_unique<MedusaUtils>(medusa_path_filename, aim_model_name);
 }
 
 template<typename T>
@@ -1813,8 +1817,12 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
         //todo: MedusaUtil::getOrCreateMedusaMask(medusa_mask, len)
         int* medusa_ti     = nullptr;
         int* medusa_mask   = nullptr;
-        int* enable_medusa = nullptr;
-        int medusa_input_len = 64;
+        int* enable_medusa = nullptr; // this should set by inited/first.
+        int  medusa_input_len = 0;
+
+        medusa_utils_->getMedusaMask(medusa_mask);
+        medusa_utils_->getMedusaTi(medusa_ti);
+        medusa_utils_->getInputLen(medusa_input_len);
         
         model_->forwardUnified(decoder_output_buf_ + first * model_->hidden_units_,
                                context_decoder_output_buf_,  // temp

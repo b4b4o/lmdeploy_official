@@ -78,6 +78,12 @@ public:
     {
         medusa_path_tuples_ =  getMedusaPathsFromLocalFile(medusa_path_, aim_model_name_);
         path_num_ = medusa_path_tuples_.size();
+        path_tree_.insert(medusa_path_tuples_);
+        int* medusa_ti = nullptr;
+        int* medusa_mask = nullptr;
+        path_tree_.getOrCreateMedusaTi(medusa_ti, input_len_);
+        path_tree_.getOrCreateMedusaMask(medusa_mask, input_len_);
+
         // displayPathTuples(medusa_path_tuples_);
     }
 
@@ -90,11 +96,16 @@ public:
     std::vector<std::vector<int>>& getPathTuples();
     size_t getPathNum();
     std::pair<size_t, size_t> resultOffsetAndLength(int batch_idx, int path_idx, int batch_size, int medusa_head_num);
+    void getMedusaTi(int* medusa_ti);
+    void getMedusaMask(int* medusa_mask);
+    void getInputLen(int& len);
 public:
     std::string medusa_path_;
     std::string aim_model_name_;
     std::vector<std::vector<int>> medusa_path_tuples_;
     size_t path_num_;
+    int    input_len_;
+    MedusaPathTree path_tree_;
 private:
     void paddingTuple(std::vector<int>& tuple, int aim_size, int padding_value);
     std::string removeAllWhiteSpaces(std::string str);

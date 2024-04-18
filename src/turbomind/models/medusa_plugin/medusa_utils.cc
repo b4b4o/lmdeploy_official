@@ -385,4 +385,14 @@ size_t MedusaUtils::getPathNum(){
     return path_num_;
 }
 
+void MedusaUtils::getMedusaTi(int* medusa_ti){
+    path_tree_.getOrCreateMedusaTi(medusa_ti, input_len_);
+}
+void MedusaUtils::getMedusaMask(int* medusa_mask){
+    path_tree_.getOrCreateMedusaMask(medusa_mask, input_len_);
+}
+void MedusaUtils::getInputLen(int& len){
+    len = input_len_;
+}
+
 }
