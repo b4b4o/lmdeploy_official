@@ -1834,9 +1834,9 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
         int medusa_input_len = *(h_input_length_buf_ + first);
         std::cout << "for test. " << std::endl;
         std::cout <<  "medusa_input_len = " << medusa_input_len << std::endl; 
-        medusa_ti = std::make_unique<int[]>(new int[medusa_input_len]{});
-        medusa_mask = std::make_unique<int[]>(new int[medusa_input_len * medusa_input_len]{});
-        enable_medusa = std::make_unique<int[]>(new int[mini_batch_size]{});
+        medusa_ti = std::make_unique<int[]>(medusa_input_len);
+        medusa_mask = std::make_unique<int[]>(medusa_input_len * medusa_input_len);
+        enable_medusa = std::make_unique<int[]>(mini_batch_size);
         // faked medusa_ti
         for(int i = 0; i < medusa_input_len; i++){
             medusa_ti[i] = i;
