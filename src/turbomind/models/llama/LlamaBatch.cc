@@ -762,6 +762,14 @@ void LlamaBatch<T>::AllocateBuffer(size_t batch_size, size_t session_len)
     medusa_topk_output_ids_buf_ =
         (int*)allocator_->reMalloc(medusa_topk_output_ids_buf_, sizeof(int) * medusa_num_heads_ * batchxbeam, true);
 
+    d_medusa_ti_ =
+        (int*)allocator_->reMalloc(d_medusa_ti_, sizeof(int) * session_len, true);
+    d_medusa_mask_ =
+        (int*)allocator_->reMalloc(d_medusa_mask_, sizeof(int) * session_len * session_len, true);
+    d_enable_medusa_ =
+        (int*)allocator_->reMalloc(d_enable_medusa_, sizeof(int) * batch_size, true);
+
+
     is_allocate_buffer_ = true;
 }
 
@@ -908,6 +916,10 @@ void LlamaBatch<T>::FreeBuffer()
         allocator_->free((void**)&medusa_ref_output_ids_buf_);
         allocator_->free((void**)&medusa_max_match_length_buf_);
         allocator_->free((void**)&h_medusa_max_match_length_buf_, true);
+
+        allocator_->free((void**)&d_medusa_ti_);
+        allocator_->free((void**)&d_medusa_mask_);
+        allocator_->free((void**)&d_enable_medusa_);
 
         is_allocate_buffer_ = false;
     }
@@ -1815,11 +1827,50 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
         }
         //todo: MedusaUtil::getOrCreateMedusaTi(medusa_ti, len)
         //todo: MedusaUtil::getOrCreateMedusaMask(medusa_mask, len)
-        int* medusa_ti     = nullptr;
-        int* medusa_mask   = nullptr;
-        int* enable_medusa = nullptr; // this should set by inited/first.
-        int  medusa_input_len = 0;
+        std::unique_ptr<int> medusa_ti     = nullptr;
+        std::unique_ptr<int> medusa_mask     = nullptr;
+        // this should set by inited/first.
+        std::unique_ptr<int> enable_medusa     = nullptr;
+        int medusa_input_len = *(h_input_length_buf_ + first);
         std::cout << "for test. " << std::endl;
+        std::cout <<  "medusa_input_len = " << medusa_input_len << std::endl; 
+        medusa_ti = std::make_unique<int[]>(new int[medusa_input_len]{});
+        medusa_mask = std::make_unique<int[]>(new int[medusa_input_len * medusa_input_len]{});
+        enable_medusa = std::make_unique<int[]>(new int[mini_batch_size]{});
+        // faked medusa_ti
+        for(int i = 0; i < medusa_input_len; i++){
+            medusa_ti[i] = i;
+            for(int j = 0; j < medusa_input_len; j++){
+                if(i >= j){
+                    medusa_mask[i * medusa_input_len + j] = 1;
+                }
+            }
+        }
+        enable_medusa[0] = 1;
+
+        std::cout << "fake medusa_mask:" << std::endl;
+        for(int i = 0; i < medusa_input_len; i++){
+            for(int j = 0; j < medusa_input_len; j++){
+                std::cout << medusa_mask[i * medusa_input_len + j]  << " ";
+            }
+            std::cout << std::endl;
+        }
+
+        std::cout << "fake medusa_ti:" << std::endl;
+        for(int i = 0; i < medusa_input_len; i++){
+            std::cout << medusa_ti[i] << " ";
+        }std::cout << std::endl;
+
+        std::cout << "fake enable_medusa:" << std::endl;
+        for(int i = 0; i < mini_batch_size; i++){
+            std::cout << medusa_ti[i] << " ";
+        }std::cout << std::endl;
+        
+        // to Device
+        Copy(medusa_ti, medusa_input_len, d_medusa_ti_);
+        Copy(medusa_mask, medusa_input_len, d_medusa_mask_);
+        Copy(enable_medusa, medusa_input_len, d_enable_medusa_);
+
         // medusa_utils_->getMedusaMask(medusa_mask);
         // medusa_utils_->getMedusaTi(medusa_ti);
         // medusa_utils_->getInputLen(medusa_input_len);
@@ -1838,9 +1889,9 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
                                dc_batch_size,
                                pf_batch_size,
                                sequences.data(),
-                               medusa_ti,
-                               medusa_mask,
-                               enable_medusa, // according to init/first
+                               d_medusa_ti_,
+                               d_medusa_mask_,
+                               d_enable_medusa_, // according to init/first
                                medusa_input_len);
 
         if (iter == 0) {

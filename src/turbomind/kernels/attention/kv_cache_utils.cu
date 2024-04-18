@@ -28,7 +28,8 @@ __global__ void __launch_bounds__(128) ProcessKV(Tkv**        blocks,
                                                  Offset       v_offset,
                                                  TransformK   transform_k,
                                                  TransformV   transform_v,
-                                                 int*         medusa_ti)
+                                                 int*         medusa_ti,
+                                                 int*         enable_medusa)
 {
     constexpr int kVecSize = sizeof(uint4) / sizeof(T);
 
@@ -128,7 +129,7 @@ __global__ void __launch_bounds__(128) ProcessKV(Tkv**        blocks,
             PRAGMA_UNROLL
             for (int s = 0; s < ITER_S; ++s) {
                 int ti = history_len + offset.y + s * Map::kDeltaS + token_idx;  // sequence local
-                if(medusa_ti){
+                if(enable_medusa[batch_idx] && medusa_ti){
                     ti = history_len + medusa_ti[offset.y + s * Map::kDeltaS + token_idx];
                 }
                 rope.apply(vec_K[s][c], ti);
@@ -200,6 +201,7 @@ void invokeProcessKV(void**       blocks,
                      int          quant_policy,
                      const float* quant_params,
                      int*         medusa_ti,
+                     int*         enable_medusa,
                      cudaStream_t stream)
 {
     constexpr int WARPS = 4;
@@ -232,7 +234,8 @@ void invokeProcessKV(void**       blocks,
                                                                   v_offset,
                                                                   transform_k,
                                                                   transform_v,
-                                                                  medusa_ti);
+                                                                  medusa_ti,
+                                                                  enable_medusa);
     };
 
     (quant_policy & QuantPolicy::kCacheKVInt8) ? invoke(int8_t{}) : invoke(T{});
@@ -261,6 +264,7 @@ template void invokeProcessKV(void**       blocks,
                               int          quant_policy,
                               const float* quant_params_kv,
                               int*         medusa_ti,
+                              int*         enable_medusa,
                               cudaStream_t stream);
 #if ENABLE_BF16
 template void invokeProcessKV(void**             blocks,
@@ -286,6 +290,7 @@ template void invokeProcessKV(void**             blocks,
                               int                quant_policy,
                               const float*       quant_params_kv,
                               int*               medusa_ti,
+                              int*               enable_medusa,
                               cudaStream_t       stream);
 #endif
 

@@ -30,6 +30,7 @@ void invokeProcessKV(void**       blocks,
                      int          quant_policy,
                      const float* quant_params_kv,
                      int*         medusa_ti,
+                     int*         enable_medusa,
                      cudaStream_t stream = {});
 
 template<class T>
@@ -58,6 +59,7 @@ void invokeProcessKV_(const AttentionParams<T>& params)
                     params.quant_policy,
                     params.kv_quant_params,
                     params.medusa_ti,
+                    params.enable_medusa,
                     params.stream);
 }
 

@@ -343,6 +343,10 @@ private:
     int* medusa_topk_output_ids_buf_{};
 
     std::unique_ptr<MedusaUtils> medusa_utils_;
+    int* d_medusa_ti_{};
+    int* d_medusa_mask_{};
+    int* d_enable_medusa_{};
+
 };
 
 }  // namespace turbomind
