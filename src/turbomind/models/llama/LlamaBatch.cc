@@ -1849,7 +1849,10 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
                 }
             }
         }
-        enable_medusa_ptr[0] = 1;
+        // enable_medusa_ptr[0] = 1;
+        for(int i = 0; i < mini_batch_size;i++){
+            enable_medusa_ptr[i] = 1;
+        }
 
         std::cout << "fake medusa_mask:" << std::endl;
         for(int i = 0; i < medusa_input_len; i++){
@@ -1963,7 +1966,7 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
     /// ! increase the counters
     g.step += 1;
 
-    PrintDecodeTokens(token_ids_buf_, g.step, active_size, stream_, "Forward");
+    // PrintDecodeTokens(token_ids_buf_, g.step, active_size, stream_, "Forward");
 
     return !should_stop;
 }
