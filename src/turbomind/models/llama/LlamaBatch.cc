@@ -1875,7 +1875,7 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
         std::cout << "copy to device." << std::endl;
         // to Device
         Copy(medusa_ti_ptr, medusa_input_len, d_medusa_ti_);
-        Copy(medusa_mask_ptr, medusa_input_len, d_medusa_mask_);
+        Copy(medusa_mask_ptr, medusa_input_len * medusa_input_len, d_medusa_mask_);
         Copy(enable_medusa_ptr, mini_batch_size, d_enable_medusa_);
 
         // medusa_utils_->getMedusaMask(medusa_mask);

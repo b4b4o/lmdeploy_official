@@ -358,7 +358,7 @@ struct AttentionUniversal {
         const int* medusa_mask = nullptr;
         if(params.enable_medusa[batch_idx]){
             medusa_mask = params.medusa_mask;
-            mask_iter = tile_iter;
+            mask_iter = tile_iter + 1;
         }
 
 
