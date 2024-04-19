@@ -60,7 +60,8 @@ struct Mainloop<arch::Sm70, Impl_> {
                                const StoreS&  store_S,
                                const int*     medusa_mask,
                                int            history_len,
-                               int            medusa_input_len)
+                               int            medusa_input_len,
+                               int            query_idx)
     {
         gmem_K.SetSmem(Impl::GetSmemK(storage));
         gmem_V.SetSmem(Impl::GetSmemV(storage));
