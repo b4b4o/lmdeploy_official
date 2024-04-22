@@ -754,6 +754,16 @@ void LlamaBatch<T>::AllocateBuffer(size_t batch_size, size_t session_len)
 
     rope_theta_ = (float*)allocator_->reMalloc(rope_theta_, sizeof(float) * batch_size, false);
 
+    medusa_all_hidden_states_buf_ = (T*)allocator_->reMalloc(
+        medusa_all_hidden_states_buf_, sizeof(T) * (1 + medusa_num_heads_) * batch_size * hidden_units, true);
+    medusa_verified_hidden_states_buf_ =
+        (T*)allocator_->reMalloc(medusa_verified_hidden_states_buf_, sizeof(T) * batch_size * hidden_units, true);
+
+    medusa_inited_hidden_states_buf_ = (T*)allocator_->reMalloc(
+        medusa_inited_hidden_states_buf_, sizeof(T) * (1 + medusa_num_heads_) * batch_size * hidden_units, true);
+    medusa_inited_input_ids_buf_ = (int*)allocator_->reMalloc(
+        medusa_inited_input_ids_buf_, sizeof(int) * (1 + medusa_num_heads_) * batch_size, true);
+
     is_allocate_buffer_ = true;
 }
 
@@ -891,6 +901,12 @@ void LlamaBatch<T>::FreeBuffer()
         allocator_->free((void**)&sampled_logprobs_);
         allocator_->free((void**)&sampled_indexes_);
         allocator_->free((void**)&sampled_nums_);
+
+        allocator_->free((void**)&medusa_all_hidden_states_buf_);
+        allocator_->free((void**)&medusa_verified_hidden_states_buf_);
+
+        allocator_->free((void**)&medusa_inited_hidden_states_buf_);
+        allocator_->free((void**)&medusa_inited_input_ids_buf_);
 
         is_allocate_buffer_ = false;
     }
@@ -1669,6 +1685,9 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
                                sequences.data());
 
         if (iter == 0) {
+            if (medusa_enable_) {
+                MedusaCopy(mini_batch_size, first);
+            }
             // compute logits of inputs if requested
             OutputContextLogits(context_decoder_output_buf_, decode_indices, decode_lengths, sequences);
         }
@@ -1758,6 +1777,48 @@ void LlamaBatch<T>::MedusaInit(
         medusa_state.verified_len = 0;
         medusa_state.inited       = true;
         medusa_state.index        = inited_index++;
+    }
+}
+
+template<typename T>
+void LlamaBatch<T>::MedusaCopy(const int mini_batch_size, const int first)
+{
+    // output hidden states: token_num * hidden_size
+    T* context_decoder_output_src = context_decoder_output_buf_;
+    // input ids
+    int* context_decoder_ids_src = context_decoder_ids_buf_;
+
+    T* last_token_hidden_units = decoder_output_buf_ + first * model_->hidden_units_;
+
+    for (int i = 0; i < mini_batch_size; i++) {
+        int global_index = i + first;
+        int len          = medusa_state_vec_[global_index].len;
+        int inited       = medusa_state_vec_[global_index].inited;
+        int index        = medusa_state_vec_[global_index].index;
+
+        T* medusa_all_hidden_states_buf_dst =
+            medusa_all_hidden_states_buf_ + global_index * (1 + medusa_num_heads_) * hidden_units;
+
+        if (inited) {
+            T* medusa_inited_hidden_states_buf_dst =
+                medusa_inited_hidden_states_buf_ + index * (1 + medusa_num_heads_) * hidden_units;
+            int* medusa_inited_input_ids_buf_dst = medusa_inited_input_ids_buf_ + index * (1 + medusa_num_heads_);
+
+            // Initialized request, hidden states
+            Copy(context_decoder_output_src, len * hidden_units, medusa_inited_hidden_states_buf_dst);
+            // Initialized request, input ids
+            Copy(context_decoder_ids_src, len, medusa_inited_input_ids_buf_dst);
+
+            Copy(context_decoder_output_src, len * hidden_units, medusa_all_hidden_states_buf_dst);
+        }
+        else {
+            Copy(last_token_hidden_units, hidden_units, medusa_all_hidden_states_buf_dst);
+        }
+
+        context_decoder_output_src += len * hidden_units;
+        context_decoder_ids_src += len;
+
+        last_token_hidden_units += hidden_units;
     }
 }
 

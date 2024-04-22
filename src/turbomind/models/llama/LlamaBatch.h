@@ -198,6 +198,7 @@ private:
                     int&                      new_index,
                     const int                 index,
                     const Sequence&           seq);
+    void MedusaCopy(const int mini_batch_size, const int first);
 
 private:
     const int  max_batch_size_;
@@ -321,6 +322,12 @@ private:
     bool medusa_enable_    = false;
 
     std::vector<MedusaState> medusa_state_vec_;
+
+    T* medusa_all_hidden_states_buf_{};
+    T* medusa_verified_hidden_states_buf_{};
+
+    T*   medusa_inited_hidden_states_buf_{};
+    int* medusa_inited_input_ids_buf_{};
 };
 
 }  // namespace turbomind
