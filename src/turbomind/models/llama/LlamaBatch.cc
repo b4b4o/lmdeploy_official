@@ -1788,7 +1788,9 @@ void LlamaBatch<T>::MedusaCopy(const int mini_batch_size, const int first)
     // input ids
     int* context_decoder_ids_src = context_decoder_ids_buf_;
 
-    T* last_token_hidden_units = decoder_output_buf_ + first * model_->hidden_units_;
+    int hidden_units = model_->hidden_units_;
+
+    T* last_token_hidden_units = decoder_output_buf_ + first * hidden_units;
 
     for (int i = 0; i < mini_batch_size; i++) {
         int global_index = i + first;

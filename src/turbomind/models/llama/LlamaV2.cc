@@ -90,7 +90,6 @@ LlamaV2<T>::LlamaV2(size_t                       head_num,
     debug_(isDebug()),
     lora_params_(lora_params),
     shared_state_(shared_state),
-    shared_state_(shared_state),
     medusa_num_heads_(medusa_num_heads),
     medusa_num_layers_(medusa_num_layers)
 {
