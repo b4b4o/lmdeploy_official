@@ -248,6 +248,8 @@ void LlamaBatch<T>::ProcessInferRequests(const Requests& requests)
 
         auto& seq = *state.sequences[idx];
 
+        seq.iter = 0;
+
         if (int step = r->inputs[rank_].getVal<int>("step", -1); step >= 0) {
             if (step <= seq.tokens.size()) {
                 seq.tokens.resize(step);
@@ -1544,6 +1546,10 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
     int               pf_offset = -1;
     std::vector<int*> input_d_ptrs(active_size);
 
+    medusa_state_vec_.resize(active_size);
+    int inited_index = 0;
+    int new_index    = 0;
+
     if (iter == 0) {  // The first iter may have pre-fill tokens
         for (int i = 0; i < active_size; ++i) {
             const auto& seq = *state_->sequences[i];
@@ -1554,6 +1560,9 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
 
             if (seq.input_length > 1 && pf_offset < 0) {
                 pf_offset = i;
+            }
+            if (medusa_enable_) {
+                MedusaInit(medusa_state_vec_, inited_index, new_index, i, seq);
             }
         }
         if (pf_offset < 0) {
@@ -1566,6 +1575,10 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
             input_d_ptrs[i]        = state_->output_ids + i * session_len_ + state_->h_context_length[i] - 1;
         }
         pf_offset = active_size;
+    }
+
+    if (medusa_enable_) {
+        pf_offset = 0;
     }
 
     // These buffers are only accessed when there are prefill workloads
@@ -1667,6 +1680,7 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
     for (int i = 0; i < active_size; ++i) {
         if (state_->requests[i]) {
             FT_CHECK(state_->sequences[i]);
+            state_->sequences[i]->iter += 1;
             state_->sequences[i]->cache_len += state_->sequences[i]->input_length;
         }
     }
@@ -1720,6 +1734,31 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
     // PrintDecodeTokens(token_ids_buf_, g.step, active_size, stream_, "Forward");
 
     return !should_stop;
+}
+
+std::ostream& operator<<(std::ostream& os, const MedusaState& medusa_state)
+{
+    os << "index=" << medusa_state.index << " len=" << medusa_state.len << " verified_len=" << medusa_state.verified_len
+       << " inited=" << medusa_state.inited;
+    return os;
+}
+
+template<typename T>
+void LlamaBatch<T>::MedusaInit(
+    std::vector<MedusaState>& medusa_state_vec, int& inited_index, int& new_index, const int index, const Sequence& seq)
+{
+    auto& medusa_state = medusa_state_vec[index];
+    medusa_state.len   = seq.input_length;
+    if (seq.iter == 0) {
+        medusa_state.verified_len = seq.input_length;
+        medusa_state.inited       = false;
+        medusa_state.index        = new_index++;
+    }
+    else {
+        medusa_state.verified_len = 0;
+        medusa_state.inited       = true;
+        medusa_state.index        = inited_index++;
+    }
 }
 
 template class LlamaBatch<half>;

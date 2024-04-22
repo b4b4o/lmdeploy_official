@@ -19,6 +19,15 @@
 
 namespace turbomind {
 
+struct MedusaState {
+    int  index;
+    int  len;
+    int  verified_len;
+    bool inited;
+
+    friend std::ostream& operator<<(std::ostream& os, const MedusaState& medusa_state);
+};
+
 struct BatchState {
     int*  h_prompt_length;  // history + input, ignore generated
     int*  h_context_length;
@@ -184,6 +193,11 @@ private:
     {
         IndexedCopyImpl(nullptr, nullptr, count, cpys...);
     }
+    void MedusaInit(std::vector<MedusaState>& medusa_state_vec,
+                    int&                      inited_index,
+                    int&                      new_index,
+                    const int                 index,
+                    const Sequence&           seq);
 
 private:
     const int  max_batch_size_;
@@ -305,6 +319,8 @@ private:
 
     int  medusa_num_heads_ = 0;
     bool medusa_enable_    = false;
+
+    std::vector<MedusaState> medusa_state_vec_;
 };
 
 }  // namespace turbomind
