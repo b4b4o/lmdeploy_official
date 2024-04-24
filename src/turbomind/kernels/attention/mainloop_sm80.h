@@ -462,7 +462,7 @@ struct Mainloop<Sm80_CpAsync<Stages>, Impl_> {
             if(medusa_mask){
                 int rel_pos_q = offset_Q + qi - his_len;
                 int rel_pos_k = offset_K + si - his_len;
-                printf("query_idx = %d, rel_pos_q = %d, rel_pos_k = %d, his_len = %d\n", query_idx, rel_pos_q, rel_pos_k, his_len);
+                // printf("query_idx = %d, rel_pos_q = %d, rel_pos_k = %d, his_len = %d\n", query_idx, rel_pos_q, rel_pos_k, his_len);
                 if(0 <= rel_pos_q && rel_pos_q < input_len && 0 <= rel_pos_k && rel_pos_k < input_len){
                     //走medusa
                     if(medusa_mask[rel_pos_q * input_len + rel_pos_k] == 0){
