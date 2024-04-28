@@ -611,7 +611,9 @@ void invokeBatchedCopy(void** src_ptr, void** dst_ptr, int* size, int count, cud
 template<int BLOCK_SIZE_>
 __global__ void medusaBatchedMatchKernel(const int* __restrict__ input_ids,
                                          const int* __restrict__ output_ids,
+                                         const int* each_path_length,
                                          int*      match_length,
+                                         int*      match_idx,
                                          const int path_num,
                                          int       size)
 {
@@ -629,8 +631,12 @@ __global__ void medusaBatchedMatchKernel(const int* __restrict__ input_ids,
 
     for (int idx = tid; idx < path_num; idx += BLOCK_SIZE_) {
         int start_id          = bid * path_num * length + idx * length;  // belong to (bid, path_id)
+        int limit_size_now;
+        if(each_path_length){
+            limit_size_now = each_path_length[idx];
+        }
         int accumulate_length = 0;
-        for (int i = 0; i < size && (start_id + i) < limit_r; ++i) {
+        for (int i = 0; i < limit_size_now && (start_id + i) < limit_r; ++i) {
             if (input_ids[start_id + i + 1] == output_ids[start_id + i]) {
                 ++accumulate_length;
             }
@@ -646,13 +652,18 @@ __global__ void medusaBatchedMatchKernel(const int* __restrict__ input_ids,
     if (tid == 0) {
         const int index     = bid;
         match_length[index] = total.u;
+        if(match_idx){
+            match_idx[index] = total.p;
+        }
     }
     __syncthreads();
 }
 
 void invokeMedusaBatchMatch(const int*   input_ids,
                             const int*   output_ids,
+                            const int*   each_path_length,
                             int*         max_match_length,
+                            int*         max_match_idx,
                             int          batch_size,
                             int          path_num,
                             int          medusa_head_num,
@@ -661,13 +672,15 @@ void invokeMedusaBatchMatch(const int*   input_ids,
     // inputs:
     // input_ids: [batch_size, path_num, 1 + medusa_head_num]
     // output_ids: [batch_size, path_num, 1 + medusa_head_num]
+    // each_path_length: [path_num]
     // outputs:
     // max_match_length: [batch_size]
+    // max_match_idx:[batch_size]
     dim3 grid, block;
     grid.x  = batch_size;
     block.x = 64;
     medusaBatchedMatchKernel<64>
-        <<<grid, block, 0, stream>>>(input_ids, output_ids, max_match_length, path_num, medusa_head_num);
+        <<<grid, block, 0, stream>>>(input_ids, output_ids, each_path_length, max_match_length, max_match_idx, path_num, medusa_head_num);
 }
 
 }  // namespace turbomind

@@ -173,7 +173,9 @@ inline void dump_sequence_len(int* d_seq_len, int step, int tp_rank, cudaStream_
 
 void invokeMedusaBatchMatch(const int*   input_ids,
                             const int*   output_ids,
+                            const int*   each_path_length,
                             int*         max_match_length,
+                            int*         max_match_idx,
                             int          batch_size,
                             int          path_num,
                             int          medusa_head_num,

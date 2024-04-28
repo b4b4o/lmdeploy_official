@@ -104,7 +104,7 @@ class Engine:
                     session_id=session_id,
                     ignore_eos=True):
                 timestamps.append(time.perf_counter())
-
+                print(output)
             first_token_latency = np.round(timestamps[1] - timestamps[0], 3)
             token_latency = np.round(timestamps[-1] - timestamps[0], 3)
             # assert output.pop('finish_reason') == 'length', \
@@ -155,7 +155,8 @@ class Engine:
             session_id, _stats = res_queue.get()
             # print(f'\n{"-" * 50}\n'
             #       f'session {session_id} stats: \n{_stats}\n{"-" * 50}\n')
-            stats.append(np.array(_stats))
+            if _stats:
+                stats.append(np.array(_stats))
 
         stats = np.concatenate(stats).reshape(-1, 5)
 

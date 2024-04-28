@@ -13,6 +13,7 @@
 #include "src/turbomind/utils/allocator.h"
 #include "src/turbomind/utils/cublasMMWrapper.h"
 #include "src/turbomind/utils/cuda_utils.h"
+#include "src/turbomind/models/medusa_plugin/medusa_utils.h"
 #include <condition_variable>
 #include <mutex>
 #include <type_traits>
@@ -193,6 +194,8 @@ private:
     {
         IndexedCopyImpl(nullptr, nullptr, count, cpys...);
     }
+
+
     void MedusaInit(std::vector<MedusaState>& medusa_state_vec,
                     int&                      inited_index,
                     int&                      new_index,
@@ -200,7 +203,7 @@ private:
                     const Sequence&           seq);
     void MedusaCopy(const int mini_batch_size, const int first);
     void MedusaVerify(const int inited_index, const int max_init_ctx_len);
-    bool MedusaGenerate(const int inited_index, const int new_index, const int max_init_ctx_len, int& step);
+    void MedusaGenerate(const int inited_index, const int new_index, const int max_init_ctx_len, int& step);
 
 private:
     const int  max_batch_size_;
@@ -325,11 +328,13 @@ private:
 
     std::vector<MedusaState> medusa_state_vec_;
 
-    T* medusa_all_hidden_states_buf_{};
-    T* medusa_verified_hidden_states_buf_{};
+    // used for verification
+    T*   medusa_inited_hidden_states_buf_{};  // updated in MedusaCopy
+    int* medusa_inited_input_ids_buf_{};      // updated in MedusaCopy
 
-    T*   medusa_inited_hidden_states_buf_{};
-    int* medusa_inited_input_ids_buf_{};
+    // used for generation
+    T* medusa_all_hidden_states_buf_{};       // updated in MedusaCopy
+    T* medusa_verified_hidden_states_buf_{};  // updated in MedusaVerify
 
     // used for logits
     float* medusa_logits_buf_{};
@@ -352,6 +357,12 @@ private:
     int* last_input_ids_buf_{};
 
     int max_len_ = 0;
+
+    std::unique_ptr<MedusaUtils> medusa_utils_;
+    int* d_medusa_ti_{};
+    int* d_medusa_mask_{};
+    int* d_enable_medusa_{};
+
 };
 
 }  // namespace turbomind

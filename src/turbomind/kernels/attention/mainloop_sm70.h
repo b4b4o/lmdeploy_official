@@ -52,7 +52,11 @@ struct Mainloop<arch::Sm70, Impl_> {
                                int            mask_iter,
                                float          qk_scale,
                                SharedStorage& storage,
-                               const StoreS&  store_S)
+                               const StoreS&  store_S,
+                               const int*     medusa_mask,
+                               int            history_len,
+                               int            medusa_input_len,
+                               int            query_idx)
     {
         GmemIterK gmem_K{};
         GmemIterV gmem_V{};

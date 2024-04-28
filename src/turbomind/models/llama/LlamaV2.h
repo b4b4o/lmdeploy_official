@@ -135,7 +135,11 @@ private:
                         int              dc_batch_size,
                         int              pf_batch_size,
                         int*             lora_mask,
-                        const Sequence** sequences);
+                        const Sequence** sequences,
+                        const int*       medusa_ti = nullptr,
+                        const int*       medusa_mask = nullptr,
+                        const int*       enable_medusa = nullptr,
+                        const int        medusa_input_len = 64);
 
     void postDecodeEmbedding(float* logits, float* local_logits, const T* decoder_output, int batch_size);
 
@@ -203,6 +207,7 @@ private:
     int                            medusa_num_heads_  = 0;
     int                            medusa_num_layers_ = 0;
     std::unique_ptr<MedusaHead<T>> medusa_head_;
+
 };
 
 }  // namespace turbomind

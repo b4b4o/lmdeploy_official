@@ -234,7 +234,10 @@ struct AttentionUniversal {
                           std::integral_constant<int, kVecSize>{});
             PRAGMA_UNROLL
             for (int s = 0; s < ITER_S; ++s) {
-                const int ti = (offset.y + s * Map::kDeltaS) / CTA_H + query_idx + history_len;
+                int ti = (offset.y + s * Map::kDeltaS) / CTA_H + query_idx + history_len; // = si(block内offset) + query_idx(这个block处理的开始相对值) + history_len
+                if(params.enable_medusa[batch_idx] && params.medusa_ti){
+                    ti = history_len + params.medusa_ti[(offset.y + s * Map::kDeltaS) / CTA_H + query_idx];
+                }
                 rope.apply(vec_Q[s][c], ti);
                 if constexpr (kProcessKV) {
                     if (s == 0) {
@@ -247,7 +250,10 @@ struct AttentionUniversal {
         if (params.use_logn_attn) {
             PRAGMA_UNROLL
             for (int s = 0; s < ITER_S; ++s) {
-                const int   ti = (offset.y + s * Map::kDeltaS) / CTA_H + query_idx + history_len;
+                int   ti = (offset.y + s * Map::kDeltaS) / CTA_H + query_idx + history_len;
+                if(params.enable_medusa[batch_idx] && params.medusa_ti){
+                    ti = history_len + params.medusa_ti[(offset.y + s * Map::kDeltaS) / CTA_H + query_idx];
+                }
                 LogNScaling logn_scaling(ti, params.max_position_embeddings);
                 PRAGMA_UNROLL
                 for (int c = 0; c < ITER_C; ++c) {
@@ -418,6 +424,13 @@ struct AttentionUniversal {
 
         cache_iter.SetTile(iter_end - 1);
 
+        const int* medusa_mask = nullptr;
+        if(params.enable_medusa[batch_idx]){
+            medusa_mask = params.medusa_mask;
+            mask_iter = tile_iter + 1;
+        }
+
+
         Mainloop mainloop;
         mainloop(frag_Q,
                  cache_iter,
@@ -430,7 +443,11 @@ struct AttentionUniversal {
                  mask_iter,
                  params.inv_sqrt_dh,
                  storage,
-                 StoreS(params, query_idx, head_idx, batch_idx, context_len));
+                 StoreS(params, query_idx, head_idx, batch_idx, context_len),
+                 medusa_mask,
+                 history_len,
+                 params.medusa_input_len,
+                 query_idx);
 
         if constexpr (Impl::kWarpCntS > 1) {
             Impl::Merge(frag_O, frag_M, frag_L, params.inv_sqrt_dh, storage);
