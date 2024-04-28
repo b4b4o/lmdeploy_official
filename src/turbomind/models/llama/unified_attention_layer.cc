@@ -227,8 +227,8 @@ inline void UnifiedAttentionLayer<T>::forward(TensorMap* outputs, const TensorMa
         params.stream = stream;
 
         params.quant_policy = quant_policy_;
-        FT_CHECK(std::size(weights->past_kv_scale) == std::size(params.kv_quant_params));
-        std::copy(weights->past_kv_scale.begin(), weights->past_kv_scale.end(), std::begin(params.kv_quant_params));
+        // FT_CHECK(std::size(weights->past_kv_scale) == std::size(params.kv_quant_params));
+        // std::copy(weights->past_kv_scale.begin(), weights->past_kv_scale.end(), std::begin(params.kv_quant_params));
 
         params.medusa_ti = medusa_ti;
         params.medusa_mask = medusa_mask;

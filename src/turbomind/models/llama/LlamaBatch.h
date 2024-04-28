@@ -203,7 +203,7 @@ private:
                     const Sequence&           seq);
     void MedusaCopy(const int mini_batch_size, const int first);
     void MedusaVerify(const int inited_index, const int max_init_ctx_len);
-    void MedusaGenerate(const int inited_index, const int new_index, const int max_init_ctx_len, int& step);
+    bool MedusaGenerate(const int inited_index, const int new_index, const int max_init_ctx_len, int& step);
 
 private:
     const int  max_batch_size_;
