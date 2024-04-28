@@ -381,7 +381,8 @@ void LlamaV2<T>::dynamicDecode(int*            token_ids,
                                int             ite,
                                size_t          max_context_len,
                                size_t          token_ids_len,
-                               size_t          batch_size)
+                               size_t          batch_size,
+                               int             cache_step)
 {
     NvtxScope scope("dynamicDecode");
     TM_LOG_DEBUG(__PRETTY_FUNCTION__);
@@ -396,7 +397,7 @@ void LlamaV2<T>::dynamicDecode(int*            token_ids,
         {"ite", {MEMORY_CPU, TYPE_UINT32, {1}, &ite}},
         {"end_id", {MEMORY_GPU, TYPE_INT32, {batch_size}, end_ids}},
         {"local_batch_size", {MEMORY_CPU, TYPE_INT32, {1}, &local_batch_size}},
-    };
+        {"cache_step", {MEMORY_CPU, TYPE_INT32, {1}, &cache_step}}};
 
     const std::vector<std::string> optional_inputs{"stop_words_list",
                                                    "bad_words_list",

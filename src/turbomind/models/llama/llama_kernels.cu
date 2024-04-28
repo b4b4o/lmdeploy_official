@@ -272,8 +272,8 @@ __global__ void gatherOutput(int*       output_ids,
             // gather next input ids
             const int input_dst_idx       = src_idx - (max_gen_step - stride_len);
             next_input_ids[input_dst_idx] = ids[src_idx * batch_size + batch_id];
+            const int last_src_idx        = src_idx - (max_gen_step - stride_len);
 
-            const int last_src_idx = src_idx - max_context_len;
             if (src_idx != max_gen_step - 1 && last_src_idx == 0) {
                 continue;
             }
