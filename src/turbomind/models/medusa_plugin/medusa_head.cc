@@ -41,6 +41,7 @@ void MedusaHead<T>::forward(TensorMap*             output_tensors,
     const size_t batch_size        = input_tensors->at("medusa_head_input").shape[0];
     const T*     hidden_states     = input_tensors->at("medusa_head_input").getPtr<T>();
     int*         h_topk_output_ids = output_tensors->at("medusa_head_output").getPtr<int>();
+    int          top_k_val             = output_tensors->at("top_k").getVal<int>();
 
     allocate_buffer(batch_size);
     // TODO parallelize this loop
@@ -49,7 +50,7 @@ void MedusaHead<T>::forward(TensorMap*             output_tensors,
         forward(medusa_head_logits, hidden_states, batch_size, medusa_weight, i);
     }
 
-    top_k(h_topk_output_ids, medusa_head_logits_buf_, batch_size * medusa_num_heads_);
+    top_k(h_topk_output_ids, medusa_head_logits_buf_, batch_size * medusa_num_heads_, top_k_val);
 }
 
 template<typename T>

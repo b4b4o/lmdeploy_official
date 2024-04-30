@@ -161,7 +161,7 @@ private:
                        size_t          batch_size,
                        int             cache_step);
 
-    void medusaForward(int* topk_output_ids, const T* input_buf, const size_t batch_size);
+    void medusaForward(int* topk_output_ids, const T* input_buf, const size_t batch_size, const int top_k);
 
 private:
     friend class LlamaBatch<T>;

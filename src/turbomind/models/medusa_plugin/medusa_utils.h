@@ -53,8 +53,10 @@ class MedusaPathTree{
     void getBatchedOutputIds(const int* output_preds_batched, int* output_ids_batched, int* each_path_len, const int medusa_head_num, const int batch_num);
     int  getMedusaPathNum();
     int  getMedusaInputLen();
-    void getPseudoIdsFromTree(const int* medusa_preds, const int medusa_head_num, const int top_k, const int* output_ids, const int max_match_count, const int max_match_idx, int* pseudo_inputs);
-    void getBatchedPseudoIdsFromTree(const int* medusa_preds_batched, const int medusa_head_num, const int top_k, const int* output_ids_batched, const int* max_match_count, const int* max_match_idx, int* pseudo_inputs_batched, const int batch_size);
+    void getPseudoIdsFromTree(const int* medusa_preds, const int medusa_head_num, const int top_k, const int max_match_count, const int max_match_idx, int* pseudo_inputs);
+    void getBatchedPseudoIdsFromTree(const int* medusa_preds_batched, const int medusa_head_num, const int top_k, const int* max_match_count, const int* max_match_idx, int* pseudo_inputs_batched, const int batch_size);
+    void getLastMatchIdx(const int& max_match_idx, const int& max_match_count, int& last_input_idx);
+    void getBatchedLastMatchIdx(const int* max_match_idx, const int* max_match_count, int* last_input_idx, const int batch_size);
   private:
   	MedusaPathTreeNode* root_ = nullptr;
   	int* medusaMask_ = nullptr;
@@ -94,11 +96,11 @@ public:
     void getTokenIdsAccordingToPath(int* medusa_path_tokens_out, const size_t& path_num,const int* medusa_pred_tokens, std::vector<std::vector<int>>& path_tuples, const int batch_size, const int medusa_head_num, const int K);
     void displayPathTuples(std::vector<std::vector<int>>& path_tuples);
     std::vector<std::vector<int>>& getPathTuples();
-    size_t getPathNum();
     std::pair<size_t, size_t> resultOffsetAndLength(int batch_idx, int path_idx, int batch_size, int medusa_head_num);
     void getMedusaTi(int* medusa_ti);
     void getMedusaMask(int* medusa_mask);
     void getInputLen(int& len);
+    void getPathNum(int& path_num);
 public:
     std::string medusa_path_;
     std::string aim_model_name_;

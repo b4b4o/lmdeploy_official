@@ -349,6 +349,10 @@ private:
     int* medusa_ref_output_ids_buf_{};
     int* medusa_max_match_length_buf_{};
     int* h_medusa_max_match_length_buf_{};
+    int* medusa_max_match_idx_buf_{};
+    int* h_medusa_max_match_idx_buf_{};
+    int* h_medusa_last_match_idx_buf_{};
+    int* h_pseudo_inputs_buf_{};
 
     int* medusa_topk_output_ids_buf_{};
 
@@ -357,6 +361,15 @@ private:
     int* last_input_ids_buf_{};
 
     int max_len_ = 0;
+
+    // packed input length
+    int medusa_input_length_ = 0;
+    int medusa_path_num_ = 0;
+    int medusa_top_k_ = 10;
+
+    int* medusa_input_tokens_buf_{};
+    int* medusa_output_tokens_buf_{};
+    int* medusa_each_path_len_buf_{};
 
     std::unique_ptr<MedusaUtils> medusa_utils_;
     int* d_medusa_ti_{};

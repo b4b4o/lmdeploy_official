@@ -209,6 +209,7 @@ void MedusaPathTree::getBatchedOutputIds(const int* output_preds_batched, int* o
     //      output_preds : [batch_num, input_len]
     // output:
     //      output_ids : [batch_num, path_num, 1 + medusa_head_num]
+    //      each_path_len : [path_num, 1]
 
     int offset = path_num_ * (1 + medusa_head_num);
     bool is_calculated = false;
@@ -219,7 +220,7 @@ void MedusaPathTree::getBatchedOutputIds(const int* output_preds_batched, int* o
             getOutputIds(output_preds, output_ids, nullptr, medusa_head_num);
         }else{
             getOutputIds(output_preds, output_ids, each_path_len, medusa_head_num);
-            is_calculated = false;
+            is_calculated = true;
         }
     }
 }
@@ -232,16 +233,13 @@ int MedusaPathTree::getMedusaInputLen(){
     return len_;
 }
 
-void MedusaPathTree::getPseudoIdsFromTree(const int* medusa_preds, const int medusa_head_num, const int top_k, const int* output_ids, const int max_match_count, const int max_match_idx, int* pseudo_inputs){
+void MedusaPathTree::getPseudoIdsFromTree(const int* medusa_preds, const int medusa_head_num, const int top_k, const int max_match_count, const int max_match_idx, int* pseudo_inputs){
     // input:
     //      medusa_preds: [medusa_head_num, topk]
-    //      output_ids:   [path_num, 1 + medusa_head_num]
     // output:
-    //      pseudo_inputs:[len_]
+    //      pseudo_inputs:[len_ - 1], return the values except root.
     int counter = 0;
 
-    const int& root_value = output_ids[max_match_idx * (1 + medusa_head_num) + max_match_count];
-    pseudo_inputs[counter++] = root_value;
     
     bool skip_root = true;
     for(int& topk_value : topk_value_of_paths){
@@ -255,26 +253,40 @@ void MedusaPathTree::getPseudoIdsFromTree(const int* medusa_preds, const int med
         const int& medusa_head_value = medusa_preds[medusa_head_id * top_k + topk_value];
         pseudo_inputs[counter++] = medusa_head_value;
     }
-    assert(counter == len_);
+    assert(counter == len_ - 1);
 
 }
 
-void MedusaPathTree::getBatchedPseudoIdsFromTree(const int* medusa_preds_batched, const int medusa_head_num, const int top_k, const int* output_ids_batched, const int* max_match_count, const int* max_match_idx, int* pseudo_inputs_batched, const int batch_size){
+void MedusaPathTree::getBatchedPseudoIdsFromTree(const int* medusa_preds_batched, const int medusa_head_num, const int top_k, const int* max_match_count, const int* max_match_idx, int* pseudo_inputs_batched, const int batch_size){
     // input:
     //      medusa_preds_batched: [batch_size, medusa_head_num, topk]
-    //      output_ids_batched:   [batch_size, path_num, 1 + medusa_head_num]
     // output:
-    //      pseudo_inputs_batched:[batch_size, len_]
+    //      pseudo_inputs_batched:[batch_size, len_ - 1]
     for(int b_id = 0; b_id < batch_size; b_id++){
         const int* medusa_preds = medusa_preds_batched + b_id * medusa_head_num * top_k;
-        const int* output_ids = output_ids_batched + b_id * path_num_ * (1 + medusa_head_num);
         std::cout << "[getBatchedPseudoIdsFromTree]" << path_num_ << " " << medusa_head_num << std::endl;
-        int* pseudo_inputs = pseudo_inputs_batched + b_id * len_;
-        getPseudoIdsFromTree(medusa_preds, medusa_head_num, top_k, output_ids, max_match_count[b_id], max_match_idx[b_id], pseudo_inputs);
+        int* pseudo_inputs = pseudo_inputs_batched + b_id * (len_ - 1);
+        getPseudoIdsFromTree(medusa_preds, medusa_head_num, top_k, max_match_count[b_id], max_match_idx[b_id], pseudo_inputs);
     }
     
 }
 
+void MedusaPathTree::getLastMatchIdx(const int& max_match_idx, const int& max_match_count, int& last_input_idx){
+    last_input_idx = input_token_idx_of_paths[max_match_idx][1 + max_match_count];
+}
+
+void MedusaPathTree::getBatchedLastMatchIdx(const int* max_match_idx, const int* max_match_count, int* last_input_idx, const int batch_size){
+    /*
+    input : 
+        max_match_idx : [batch_size],
+        max_match_count : [batch_size],
+    output :
+        last_input_idx : [batch_size],
+    */
+    for(int b_id = 0; b_id < batch_size; b_id++){
+        getLastMatchIdx(max_match_idx[b_id], max_match_count[b_id], last_input_idx[b_id]);
+    }
+} 
 
 
 void MedusaUtils::getTokenIdsAccordingToPath(int* medusa_path_tokens_out, const size_t& path_num, const int* medusa_pred_tokens, std::vector<std::vector<int>>& path_tuples, const int batch_size, const int medusa_head_num, const int K){
@@ -381,8 +393,8 @@ std::vector<std::vector<int>>& MedusaUtils::getPathTuples(){
 std::pair<size_t, size_t> MedusaUtils::resultOffsetAndLength(int batch_idx, int path_idx, int batch_size, int medusa_head_num){
     return std::pair<size_t, size_t> {path_idx * batch_size * medusa_head_num + batch_idx * medusa_head_num, medusa_head_num};
 }
-size_t MedusaUtils::getPathNum(){
-    return path_num_;
+void MedusaUtils::getPathNum(int& path_num){
+    path_num = path_num_;
 }
 
 void MedusaUtils::getMedusaTi(int* medusa_ti){
