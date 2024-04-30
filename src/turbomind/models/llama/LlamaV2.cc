@@ -449,7 +449,7 @@ void LlamaV2<T>::medusaForward(int* topk_output_ids, const T* input_buf, const s
 
     turbomind::TensorMap inputs{
         {"medusa_head_input", {turbomind::MEMORY_GPU, dtype, {batch_size, hidden_units_}, input_buf}},
-        {"top_k", {turbomind::MEMORY_CPU, TYPE_INT32, {1}, top_k}},
+        {"top_k", {turbomind::MEMORY_CPU, TYPE_INT32, {1}, &top_k}},
     };
 
     turbomind::TensorMap outputs{
