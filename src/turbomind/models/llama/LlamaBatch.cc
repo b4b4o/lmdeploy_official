@@ -2134,7 +2134,7 @@ void LlamaBatch<T>::MedusaVerify(const int inited_index, const int max_init_ctx_
         Copy(medusa_max_match_idx_buf_, inited_index, h_medusa_max_match_idx_buf_);
         // todo: call MedusaUtil::getBatchedLastMatchIdx to get last_match_idx
 
-        medusa_utils_->getBatchedLastMatchIdx(h_medusa_max_match_length_buf_, h_medusa_max_match_idx_buf_, h_medusa_last_match_idx_buf_, inited_index);
+        medusa_utils_->path_tree_.getBatchedLastMatchIdx(h_medusa_max_match_length_buf_, h_medusa_max_match_idx_buf_, h_medusa_last_match_idx_buf_, inited_index);
 
         // auto diff = [](const std::vector<int>& lhs,
         //                const std::vector<int>& rhs,
