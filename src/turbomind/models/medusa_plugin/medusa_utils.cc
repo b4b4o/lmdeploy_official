@@ -288,6 +288,27 @@ void MedusaPathTree::getBatchedLastMatchIdx(const int* max_match_idx, const int*
     }
 } 
 
+void MedusaPathTree::getMatchedPartIdx(const int& max_match_idx, const int& max_match_count, int* matched_part_input_idx){
+    auto& paths = input_token_idx_of_paths[max_match_idx];
+    // include root
+    for(int i = 0; i <= max_match_count; i++){
+        matched_part_input_idx[i] = paths[i];
+    }
+}
+void MedusaPathTree::getBatchedMatchedPartIdx(const int* max_match_idx, const int* max_match_count, int* matched_part_input_idx, const int batch_size, const int medusa_head_num){
+    /*
+    input : 
+        max_match_idx : [batch_size],
+        max_match_count : [batch_size],
+    output :
+        matched_part_input_idx : [batch_size, 1 + medusa_head_num],
+    */
+    
+    for(int b_id = 0; b_id < batch_size; b_id++){
+        getMatchedPartIdx(max_match_idx[b_id], max_match_count[b_id], matched_part_input_idx + b_id * (1 + medusa_head_num));
+    }
+}
+
 
 void MedusaUtils::getTokenIdsAccordingToPath(int* medusa_path_tokens_out, const size_t& path_num, const int* medusa_pred_tokens, std::vector<std::vector<int>>& path_tuples, const int batch_size, const int medusa_head_num, const int K){
     // input:[medusa_head_num, batch_size, topk], output:[path_num, batch_size, medusa_head_num]
