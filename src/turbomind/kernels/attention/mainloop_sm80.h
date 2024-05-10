@@ -319,7 +319,11 @@ struct Mainloop<Sm80_CpAsync<Stages>, Impl_> {
                         int            mask_iter,
                         float          qk_scale,
                         SharedStorage& storage,
-                        const StoreS&  store_S)
+                        const StoreS&  store_S,
+                        const int*     medusa_mask,
+                        int            history_len,
+                        int            medusa_input_len,
+                        int            query_idx)
     {
         GmemIterK gmem_K{};
         GmemIterV gmem_V{};
@@ -359,7 +363,9 @@ struct Mainloop<Sm80_CpAsync<Stages>, Impl_> {
             const int offset_K = tile_iter * CTA_S;
 
             if constexpr (is_mask) {
-                ApplyCasualMask(frag_S, offset_Q, offset_K);
+                // ApplyCasualMask(frag_S, offset_Q, offset_K);
+
+                ApplyCasualMask(frag_S, offset_Q, offset_K, medusa_mask, history_len, medusa_input_len, query_idx);
             }
             Impl::Softmax<is_mask>(frag_S, frag_M, frag_L, frag_O, qk_scale);
 

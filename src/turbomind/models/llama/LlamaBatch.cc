@@ -1793,7 +1793,7 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
         int *medusa_mask     = nullptr;
         // this should set by inited/first.
         std::unique_ptr<int[]> enable_medusa     = nullptr;
-        int &medusa_input_len = *(h_input_length_buf_ + first);
+        int medusa_input_len = *(h_input_length_buf_ + first);
         std::cout << "[before Attention]. " << std::endl;
         std::cout <<  "medusa_input_len = " << medusa_input_len << std::endl;
         // medusa_ti = std::make_unique<int[]>(medusa_input_len);
