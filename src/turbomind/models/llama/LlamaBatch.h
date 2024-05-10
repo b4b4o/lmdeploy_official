@@ -353,6 +353,7 @@ private:
     int* h_medusa_max_match_idx_buf_{};
     int* h_medusa_last_match_idx_buf_{};
     int* h_pseudo_inputs_buf_{};
+    int* h_medusa_preds_batched_buf_{};
 
     int* medusa_topk_output_ids_buf_{};
 
@@ -376,6 +377,17 @@ private:
     int* d_medusa_mask_{};
     int* d_enable_medusa_{};
 
+    template<typename U>
+    void dbg_func(U* src, int len, std::string cout_str){
+        std::vector<U>tmps1(len);
+        Copy(src, len, tmps1.data());
+
+        std::cout << cout_str << std::endl;
+        for(int i = 0; i < len; i++){
+            std::cout << " " << tmps1[i] ;
+        }
+        std::cout << std::endl;
+    };
 };
 
 }  // namespace turbomind

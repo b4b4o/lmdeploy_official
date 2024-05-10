@@ -17,8 +17,8 @@ int main(){
     int* medusa_ti;
     int* medusa_mask;
     int len;
-    tree.getOrCreateMedusaTi(medusa_ti, len);
-    tree.getOrCreateMedusaMask(medusa_mask, len);
+    tree.getOrCreateMedusaTi(&medusa_ti, len);
+    tree.getOrCreateMedusaMask(&medusa_mask, len);
 
     int medusa_head_num = 5;
     int batch_num = 4;

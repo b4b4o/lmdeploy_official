@@ -785,7 +785,8 @@ void LlamaBatch<T>::AllocateBuffer(size_t batch_size, size_t session_len)
         (int*)allocator_->reMalloc(h_medusa_last_match_idx_buf_, sizeof(int) * batchxbeam, true, true);
     h_pseudo_inputs_buf_ =
         (int*)allocator_->reMalloc(h_pseudo_inputs_buf_, sizeof(int) * batchxbeam * medusa_input_length_, true, true);
-
+    h_medusa_preds_batched_buf_ =
+        (int*)allocator_->reMalloc(h_medusa_preds_batched_buf_, sizeof(int) * batchxbeam * medusa_num_heads_ * medusa_top_k_, true, true);
     medusa_topk_output_ids_buf_ =
         (int*)allocator_->reMalloc(medusa_topk_output_ids_buf_, sizeof(int) * medusa_num_heads_ * batchxbeam * medusa_top_k_, true);
 
@@ -970,6 +971,7 @@ void LlamaBatch<T>::FreeBuffer()
         allocator_->free((void**)&h_medusa_max_match_idx_buf_, true);
         allocator_->free((void**)&h_medusa_last_match_idx_buf_, true);
         allocator_->free((void**)&h_pseudo_inputs_buf_, true);
+        allocator_->free((void**)&h_medusa_preds_batched_buf_, true);
 
         allocator_->free((void**)&medusa_topk_output_ids_buf_);
 
@@ -1042,6 +1044,7 @@ LlamaBatch<T>::LlamaBatch(
     medusa_num_heads_(medusa_num_heads),
     medusa_enable_(medusa_num_heads != 0)
 {
+    // medusa_enable_ = false;
     stream_         = model_->stream_;
     allocator_      = model_->allocator_;
     cublas_wrapper_ = model_->cublas_wrapper_;
@@ -1091,10 +1094,10 @@ LlamaBatch<T>::LlamaBatch(
     incoming_ = &states_[2];
 
     // todo: fix this to config.
-    std::string medusa_path_filename = "/workdir/lmdeploy/src/turbomind/models/medusa_plugin/medusa_choices.info";
+    std::string medusa_path_filename = "/workdir/lmdeploy_official/src/turbomind/models/medusa_plugin/medusa_choices.info";
     std::string aim_model_name = "mc_sim_7b_63";
     medusa_utils_ = std::make_unique<MedusaUtils>(medusa_path_filename, aim_model_name);
-    medusa_utils_->getInputLen(medusa_input_length_);
+    medusa_utils_->getInputLen(medusa_input_length_); // 64
     medusa_utils_->getPathNum(medusa_path_num_);
 
     AllocateBuffer(max_batch_size_, session_len_);
@@ -1319,17 +1322,18 @@ auto LlamaBatch<T>::Finish(GenerationState& g) -> std::vector<Signal>
         FT_CHECK(g.step >= 0);
 
         // [s,b] -> [b,s] and skip padding in [context_len, max_context_len)
-        invokeGatherOutput(state_->output_ids,
+        // todo:fix this
+        invokeGatherOutput(state_->output_ids, // dst
                            state_->input_ids,
-                           token_ids_buf_,
+                           token_ids_buf_, // src
                            last_input_ids_buf_,
                            medusa_verified_length_,
                            init_context_length_,
                            g.max_init_ctx_len,
-                           g.step + 1 + medusa_num_heads_,
+                           g.step + medusa_input_length_,
                            session_len_,
                            batch_size - g.partial,
-                           1 + medusa_num_heads_,
+                           medusa_input_length_,
                            stream_);
 
         Clear(token_ids_buf_, batch_size * session_len_);
@@ -1361,7 +1365,7 @@ auto LlamaBatch<T>::Finish(GenerationState& g) -> std::vector<Signal>
     // generated) tokens
     for (int i = 0; i < batch_size; ++i) {
         if (medusa_enable_) {
-            state_->h_context_length[i] += 1 + medusa_num_heads_;
+            state_->h_context_length[i] += medusa_input_length_;
         }
         else {
             ++state_->h_context_length[i];
@@ -1374,7 +1378,7 @@ auto LlamaBatch<T>::Finish(GenerationState& g) -> std::vector<Signal>
             if (state_->requests[i] && (state_->requests[i]->stream_cb || state_->h_finished[i])) {
                 auto      output_ids = state_->requests[i]->outputs[rank_].getPtr<int>("output_ids");
                 auto      output_len = state_->requests[i]->outputs[rank_].getPtr<int>("sequence_length");
-                const int count      = state_->h_context_length[i] - medusa_num_heads_;
+                const int count      = state_->h_context_length[i] - medusa_input_length_; // todo: figure out this.
                 // TODO: sync history output tokens at when receiving the request and copy the last token here
                 std::copy(output_ptr, output_ptr + count, output_ids);
                 *output_len = count;
@@ -1420,6 +1424,22 @@ auto LlamaBatch<T>::Finish(GenerationState& g) -> std::vector<Signal>
             }
             TM_LOG_INFO("[Finish] slot %d, tokens [%s]", i, ss.str().c_str());
         }
+    }
+
+    if(rank_ == 0){
+
+        for (int i = 0; i < batch_size; ++i) {
+                // ss << (i ? ", " : "") << "(" << state_->h_context_length[i] << "," << state_->h_finished[i] << ")";
+                std::vector<int> tokens(state_->h_context_length[i]);
+                Copy(state_->output_ids + i * session_len_, tokens.size(), tokens.data());
+                cudaStreamSynchronize(stream_);
+                std::stringstream ss;
+                for (const auto& t : tokens) {
+                    ss << " " << t;
+                }
+                std::cout << "[Finish] slot " << i <<" tokens ["<< ss.str().c_str() << "]" << std::endl ;
+        }
+        std::cout << "=======================" << std::endl;
     }
 
     std::vector<Signal> signals;
@@ -1767,23 +1787,27 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
                             max_k);
             }
         }
-        std::unique_ptr<int[]> medusa_ti     = nullptr;
-        std::unique_ptr<int[]> medusa_mask     = nullptr;
+        // std::unique_ptr<int[]> medusa_ti     = nullptr;
+        int *medusa_ti     = nullptr;
+        // std::unique_ptr<int[]> medusa_mask     = nullptr;
+        int *medusa_mask     = nullptr;
         // this should set by inited/first.
         std::unique_ptr<int[]> enable_medusa     = nullptr;
-        int medusa_input_len = *(h_input_length_buf_ + first);
-        std::cout << "for test. " << std::endl;
+        int &medusa_input_len = *(h_input_length_buf_ + first);
+        std::cout << "[before Attention]. " << std::endl;
         std::cout <<  "medusa_input_len = " << medusa_input_len << std::endl;
-        medusa_ti = std::make_unique<int[]>(medusa_input_len);
-        int* medusa_ti_ptr = medusa_ti.get();
-        medusa_mask = std::make_unique<int[]>(medusa_input_len * medusa_input_len);
-        int* medusa_mask_ptr = medusa_mask.get();
+        // medusa_ti = std::make_unique<int[]>(medusa_input_len);
+        // int* medusa_ti_ptr = medusa_ti.get();
+        int* medusa_ti_ptr = medusa_ti;
+        // medusa_mask = std::make_unique<int[]>(medusa_input_len * medusa_input_len);
+        // int* medusa_mask_ptr = medusa_mask.get();
+        int* medusa_mask_ptr = medusa_mask;
         enable_medusa = std::make_unique<int[]>(mini_batch_size);
         int* enable_medusa_ptr = enable_medusa.get();
         
         // GET MedusaTi, MedusaMask
-        medusa_utils_->getMedusaTi(medusa_ti_ptr);
-        medusa_utils_->getMedusaMask(medusa_mask_ptr);
+        medusa_utils_->getMedusaTi(&medusa_ti_ptr);
+        medusa_utils_->getMedusaMask(&medusa_mask_ptr);
         medusa_utils_->getInputLen(medusa_input_len);
 
         // GET EnableMedusa
@@ -1809,6 +1833,7 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
         // }
 
         std::cout << "fake medusa_mask:" << std::endl;
+        std::cout << "medusa_mask_ptr : " << medusa_mask_ptr << std::endl;
         for(int i = 0; i < medusa_input_len; i++){
             for(int j = 0; j < medusa_input_len; j++){
                 std::cout << medusa_mask_ptr[i * medusa_input_len + j]  << " ";
@@ -1836,12 +1861,28 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
         // medusa_utils_->getMedusaTi(medusa_ti);
         // medusa_utils_->getInputLen(medusa_input_len);
         std::cout << "after copy to D" << std::endl;
-        model_->forwardUnified(decoder_output_buf_ + first * model_->hidden_units_,
+        //todo bzw
+        // auto dbg_func = [&](int* src, int len, std::string cout_str){
+        //     std::vector<int>tmps1(len);
+        //     Copy(src, len, tmps1.data());
+
+        //     std::cout << cout_str << std::endl;
+        //     for(int i = 0; i < len; i++){
+        //         std::cout << " " << tmps1[i] ;
+        //     }
+        //     std::cout << std::endl;
+        // };
+
+        std::cout << "[before Attention] token_count = " << token_count << std::endl;
+        dbg_func<int>(context_decoder_ids_buf_, token_count, "[before Attn] context_decoder_ids_buf_ = ");
+        dbg_func<T>(decoder_output_buf_, 10, "[before Attn] decoder_output_buf_ = ");
+        dbg_func<T>(context_decoder_output_buf_, 10, "[before Attn] context_decoder_output_buf_ = ");
+        model_->forwardUnified(decoder_output_buf_ + first * model_->hidden_units_, // out
                                context_decoder_output_buf_,  // temp
                                context_decoder_input_buf_,   // temp
                                (void**)block_ptrs_,
                                cu_block_counts_ + first,
-                               context_decoder_ids_buf_,  // temp
+                               context_decoder_ids_buf_,  // temp input_ids
                                h_input_length_buf_ + first,
                                state_->h_context_length + first,
                                rope_theta_ + first,
@@ -1855,10 +1896,15 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
                                d_medusa_mask_,
                                d_enable_medusa_, // according to init/first
                                medusa_input_len);
-        std::cout << "after call forward" << std::endl;
+        std::cout << "[after Attention] after call forward" << std::endl;
+        dbg_func(context_decoder_ids_buf_, token_count, "[after Attn] context_decoder_ids_buf_ = ");
+        dbg_func(decoder_output_buf_, 10, "[after Attn] decoder_output_buf_ = ");
+        dbg_func(context_decoder_output_buf_, 10, "[after Attn] context_decoder_output_buf_ = ");
         if (iter == 0) {
             if (medusa_enable_) {
+                std::cout << "[before MedusaCopy]" << std::endl;
                 MedusaCopy(mini_batch_size, first);
+                std::cout << "[after MedusaCopy]" << std::endl;
             }
             // compute logits of inputs if requested
             OutputContextLogits(context_decoder_output_buf_, decode_indices, decode_lengths, sequences);
@@ -1869,24 +1915,31 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
 
     if (medusa_enable_) {
         // LMHead, Sampling, Match
-        MedusaVerify(inited_index, g.max_init_ctx_len);
-
+        std::cout << "[before MedusaVerify]" << std::endl;
+        std::cout << "inited_index = " << inited_index << ", " << "g.max_init_ctx_len = " << g.max_init_ctx_len << std::endl;
+        MedusaVerify(inited_index, g.max_init_ctx_len); // 第一次不会走
+        std::cout << "[after Match]" << std::endl;
+        std::cout << "[after MedusaVerify]" << std::endl;
         std::vector<int> verified_len(active_size, 0);
         int              idx = 0;
         for (int i = 0; i < active_size; i++) {
             if (!medusa_state_vec_[i].inited) {
+                std::cout << "batch " << i << ", continued verify ." << std::endl;
                 continue;
             }
             verified_len[i] = h_medusa_max_match_length_buf_[idx++];
+            std::cout << "batch " << i << ", verified_len = " << verified_len[i] << std::endl;
         }
 
         Copy(verified_len.data(), active_size, medusa_verified_length_);
-
+        // todo: add invoke here.
         max_len_ = *std::max_element(verified_len.begin(), verified_len.end()) + 1;
         // [b, seq] -> [seq, b]
         invokeTransposeAxis01(last_input_ids_buf_, state_->input_ids, active_size, medusa_input_length_, 1, stream_);
 
-        should_stop = MedusaGenerate(inited_index, new_index, g.max_init_ctx_len, g.step);
+        dbg_func(token_ids_buf_, 100, "[before MedusaGenerate] token_ids_buf_ = ");
+        should_stop = MedusaGenerate(inited_index, new_index, g.max_init_ctx_len, g.step); // 生成 1 + num 的结果到 token_ids_buf_
+        dbg_func(token_ids_buf_, 100, "[after MedusaGenerate] token_ids_buf_ = ");
     }
 
     std::fill(h_input_length_buf_, h_input_length_buf_ + active_size, 0);
@@ -1900,7 +1953,7 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
             FT_CHECK(state_->sequences[i]);
             state_->sequences[i]->iter += 1;
             if (medusa_state_vec_[i].inited) {
-                state_->sequences[i]->cache_len += 1 + h_medusa_max_match_length_buf_[idx++];
+                state_->sequences[i]->cache_len += 1 + h_medusa_max_match_length_buf_[idx++]; // fixme: ??? here 
                 tmp_cache_len[i] = state_->sequences[i]->cache_len;
             }
             else {
@@ -1999,6 +2052,7 @@ void LlamaBatch<T>::MedusaCopy(const int mini_batch_size, const int first)
     // hidden_dims
     int hidden_units = model_->hidden_units_;
     // [batch_size, hidden_size]
+    std::cout << "first = " << first << std::endl;
     T* last_token_hidden_units = decoder_output_buf_ + first * hidden_units;
 
     // process each batch
@@ -2026,6 +2080,14 @@ void LlamaBatch<T>::MedusaCopy(const int mini_batch_size, const int first)
             Copy(context_decoder_output_src, len * hidden_units, medusa_all_hidden_states_buf_dst);
         }
         else {
+            //todo
+            std::vector<T>tmps1(10);
+            Copy(last_token_hidden_units, 10, tmps1.data());
+            std::cout << "[MedusaCopy] show:" << std::endl;
+            for(int i = 0; i < 10; i++){
+                std::cout << " " << tmps1[i] ;
+            }
+            std::cout << std::endl;
             Copy(last_token_hidden_units, hidden_units, medusa_all_hidden_states_buf_dst);
         }
         // src ptr move
@@ -2062,6 +2124,7 @@ void LlamaBatch<T>::MedusaVerify(const int inited_index, const int max_init_ctx_
                               stream_);
         int step = 0;
         // for each in medusa_input_length, process a batch
+        std::cout << "[before LMHead, Sampling]" <<std::endl;
         for (int i = 0; i < medusa_input_length_; i++) {
             T* medusa_inited_hidden_states_buf_src = medusa_inited_hidden_states_buf_ + i * inited_index * hidden_size;
 
@@ -2088,6 +2151,7 @@ void LlamaBatch<T>::MedusaVerify(const int inited_index, const int max_init_ctx_
             step++;
         }
 
+        std::cout << "[after LMHead, Sampling]" <<std::endl;
         // [medusa_input_length_, batch_size, 1] -> [batch_size, medusa_input_length_, 1]
         invokeTransposeAxis01(
             medusa_ref_output_ids_buf_, medusa_token_ids_buf_, medusa_input_length_, inited_index, 1, stream_);
@@ -2119,6 +2183,8 @@ void LlamaBatch<T>::MedusaVerify(const int inited_index, const int max_init_ctx_
         Copy(unpacked_each_path_len.data(), inited_index * medusa_path_num_ * (1 + medusa_num_heads_), medusa_each_path_len_buf_);
 
         //call batch match
+
+        std::cout << "[before batched Match]" <<std::endl;
         invokeMedusaBatchMatch(medusa_input_tokens_buf_,
                                medusa_output_tokens_buf_,
                                medusa_each_path_len_buf_,
@@ -2133,7 +2199,7 @@ void LlamaBatch<T>::MedusaVerify(const int inited_index, const int max_init_ctx_
         Copy(medusa_max_match_length_buf_, inited_index, h_medusa_max_match_length_buf_);
         Copy(medusa_max_match_idx_buf_, inited_index, h_medusa_max_match_idx_buf_);
         // todo: call MedusaUtil::getBatchedLastMatchIdx to get last_match_idx
-
+        std::cout << "[after batched Match]" <<std::endl;
         medusa_utils_->path_tree_.getBatchedLastMatchIdx(h_medusa_max_match_length_buf_, h_medusa_max_match_idx_buf_, h_medusa_last_match_idx_buf_, inited_index);
 
         // auto diff = [](const std::vector<int>& lhs,
@@ -2183,17 +2249,21 @@ bool LlamaBatch<T>::MedusaGenerate(const int inited_index, const int new_index, 
             if (medusa_state_vec_[i].inited) {
                 // inited seq last verified
                 // find the right last pos.
+                std::cout << "[MedusaGenerate] old. choose last match idx = " << h_medusa_last_match_idx_buf_[inited_idx]  << std::endl; 
                 medusa_verified_hidden_states_buf_dst =
                     Copy(medusa_all_hidden_states_buf_src + h_medusa_last_match_idx_buf_[inited_idx++] * hidden_size,
                          hidden_size,
                          medusa_verified_hidden_states_buf_dst); 
             }
             else {
+                std::cout << "[MedusaGenerate] new. choose last hidden states."  << std::endl; 
                 // new seq first
                 medusa_verified_hidden_states_buf_dst =
                     Copy(medusa_all_hidden_states_buf_src, hidden_size, medusa_verified_hidden_states_buf_dst);
             }
         }
+        
+        dbg_func(medusa_all_hidden_states_buf_, hidden_size, "[MedusaGenerate] medusa_all_hidden_states_buf_:");
 
         // lm head linear
         if (medusa_logits_buf_ == nullptr) {
@@ -2211,6 +2281,8 @@ bool LlamaBatch<T>::MedusaGenerate(const int inited_index, const int new_index, 
         // src medusa_verified_hidden_states_buf_:[batch, hidden_dim] -> dst medusa_logits_buf_:[batch, vocab_size]
         model_->postDecodeEmbedding(
             medusa_logits_buf_, medusa_local_logits_buf_, medusa_verified_hidden_states_buf_, batch_size);
+        
+        dbg_func(medusa_logits_buf_, batch_size * model_->vocab_size_padded_, "[after LMHead] medusa_logits_buf_:");
 
         // sampling
         // src medusa_logits_buf_:[batch, vocab_size] -> dst medusa_token_ids_buf_:[batch, 1]
@@ -2231,21 +2303,42 @@ bool LlamaBatch<T>::MedusaGenerate(const int inited_index, const int new_index, 
                               session_len_ * 2,
                               batch_size,
                               step);
-
+        dbg_func(medusa_token_ids_buf_, 10, "[after sampling] medusa_token_ids_buf_ = ");
         // medusa forward
         // H:medusa_verified_hidden_states_buf_[batch_size, hidden_dim] -> [batch_size, medusa_head_num, vocab_size] -> medusa_topk_output_ids_buf_[batch_size, medusa_head_num, top10]
         model_->medusaForward(medusa_topk_output_ids_buf_, medusa_verified_hidden_states_buf_, batch_size, medusa_top_k_);
+        
+        dbg_func(medusa_topk_output_ids_buf_, batch_size * medusa_num_heads_ * medusa_top_k_, "[after medusa linear] medusa_topk_output_ids_buf_ = ");
+
+        // D2H, using MedusaUtils
+        Copy(medusa_topk_output_ids_buf_, batch_size * medusa_num_heads_ * medusa_top_k_, h_medusa_preds_batched_buf_);
         // src medusa_topk_output_ids_buf_:[batch_size, medusa_head_num, top_k]
         // dst h_pseudo_inputs_buf_: [batch_size, input_len_ - 1]
-        medusa_utils_->path_tree_.getBatchedPseudoIdsFromTree(medusa_topk_output_ids_buf_, medusa_num_heads_, medusa_top_k_, h_medusa_max_match_length_buf_, h_medusa_max_match_idx_buf_, h_pseudo_inputs_buf_, batch_size);
-
-        // src: [batch_size, input_len_] -> dst: [input_len_, batch_size]
+        medusa_utils_->path_tree_.getBatchedPseudoIdsFromTree(h_medusa_preds_batched_buf_, medusa_num_heads_, medusa_top_k_, h_medusa_max_match_length_buf_, h_medusa_max_match_idx_buf_, h_pseudo_inputs_buf_, batch_size);
+        std::cout << "[in MedusaGenerate] after getBatchedPseudoIdsFromTree" << std::endl;
+        // src: [batch_size, input_len_ - 1] -> dst: [input_len_ - 1, batch_size]
         invokeTransposeAxis01(
-            h_pseudo_inputs_buf_, h_pseudo_inputs_buf_, batch_size, medusa_num_heads_, medusa_top_k_, stream_);
+            h_pseudo_inputs_buf_, h_pseudo_inputs_buf_, batch_size, medusa_input_length_ - 1, 1, stream_);
+
+        //: fake
+        for(int i = 0; i < batch_size * medusa_input_length_ - 1; i++){
+            h_pseudo_inputs_buf_[i] = 1000 + i; 
+        }
+        //: end fake
         // [LM] [Med batch pos1][Med batch pos2][Med batch pos3][Med batch pos ...]
         Copy(medusa_token_ids_buf_, batch_size, token_ids_buf_ + step * batch_size);
-        Copy(h_pseudo_inputs_buf_, batch_size * (medusa_input_length_ - 1), token_ids_buf_ + step * batch_size * (medusa_input_length_ - 1)); // Medusa Generate
+        // Copy(h_pseudo_inputs_buf_, batch_size * (medusa_input_length_ - 1), token_ids_buf_ + step * batch_size * (medusa_input_length_ - 1)); // Medusa Generate
+        Copy(h_pseudo_inputs_buf_, batch_size * (medusa_input_length_ - 1), token_ids_buf_ + (step + 1) * batch_size); // Medusa Generate
+        dbg_func(h_pseudo_inputs_buf_, batch_size * (medusa_input_length_ - 1), "[after sampling] h_pseudo_inputs_buf_ = ");
 
+
+        // std::vector<int>tmps(batch_size * medusa_input_length_, 0);
+        // Copy(token_ids_buf_, batch_size * medusa_input_length_, tmps.data());
+        // std::cout << "[after GetPseudoIds] show:" << std::endl;
+        // for(int i = 0; i < batch_size * medusa_input_length_; i++){
+        //     std::cout << " " << tmps[i] ;
+        // }
+        // std::cout << std::endl;
         return should_stop;
     }
 }

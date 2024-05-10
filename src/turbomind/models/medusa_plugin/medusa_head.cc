@@ -41,7 +41,9 @@ void MedusaHead<T>::forward(TensorMap*             output_tensors,
     const size_t batch_size        = input_tensors->at("medusa_head_input").shape[0];
     const T*     hidden_states     = input_tensors->at("medusa_head_input").getPtr<T>();
     int*         h_topk_output_ids = output_tensors->at("medusa_head_output").getPtr<int>();
-    int          top_k_val             = output_tensors->at("top_k").getVal<int>();
+    std::cout << "[medusaHead::forward] before get top_k_val = " << std::endl;
+    int          top_k_val             = input_tensors->at("top_k").getVal<int>();
+    std::cout << "[medusaHead::forward] top_k_val = " << top_k_val << std::endl;
 
     allocate_buffer(batch_size);
     // TODO parallelize this loop

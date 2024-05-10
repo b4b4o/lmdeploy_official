@@ -47,11 +47,11 @@ void MedusaPathTree::dbg(MedusaPathTreeNode* node){
     }
 }
 
-void MedusaPathTree::getOrCreateMedusaTi(int* medusa_ti, int &len){
+void MedusaPathTree::getOrCreateMedusaTi(int** medusa_ti, int &len){
     if(!medusaTi_){
         bfs();
     }
-    medusa_ti = medusaTi_;
+    *medusa_ti = medusaTi_;
     len = len_;
 }
 void MedusaPathTree::bfs(){
@@ -143,14 +143,19 @@ void MedusaPathTree::dfs(MedusaPathTreeNode* node, std::vector<int>& ancestor_id
         ancestor_ids.pop_back();
     }
 } 
-void MedusaPathTree::getOrCreateMedusaMask(int* medusa_mask, int &len){
+void MedusaPathTree::getOrCreateMedusaMask(int** medusa_mask, int &len){
     if(!medusaMask_){
         dfs();
     }
-    medusa_mask = medusaMask_;
+    std::cout << "[MedusaPathTree::getOrCreateMedusaMask], before set mask ptr:" << *medusa_mask << std::endl;
+    std::cout << "[MedusaPathTree::getOrCreateMedusaMask], before set medusaMask_ ptr:" << medusaMask_ << std::endl;
+    *medusa_mask = medusaMask_;
+    std::cout << "[MedusaPathTree::getOrCreateMedusaMask], after set mask ptr:" << *medusa_mask << std::endl;
+    std::cout << "[MedusaPathTree::getOrCreateMedusaMask] after dfs, len_ = " << len_ << std::endl;
     len = len_;
     path_num_ = input_token_idx_of_paths.size();
-#if 1
+    std::cout << "[MedusaPathTree::getOrCreateMedusaMask] after dfs, path_num_ = " << path_num_ << std::endl;
+#if 0
     std::cout << "[debug] medusaMask_ = " << std::endl;
     for(int i = 0; i < len_; i++){
         for(int j = 0; j < len_; j++){
@@ -418,10 +423,10 @@ void MedusaUtils::getPathNum(int& path_num){
     path_num = path_num_;
 }
 
-void MedusaUtils::getMedusaTi(int* medusa_ti){
+void MedusaUtils::getMedusaTi(int** medusa_ti){
     path_tree_.getOrCreateMedusaTi(medusa_ti, input_len_);
 }
-void MedusaUtils::getMedusaMask(int* medusa_mask){
+void MedusaUtils::getMedusaMask(int** medusa_mask){
     path_tree_.getOrCreateMedusaMask(medusa_mask, input_len_);
 }
 void MedusaUtils::getInputLen(int& len){

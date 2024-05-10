@@ -47,8 +47,8 @@ class MedusaPathTree{
     void dbg();
     void bfs();
     void dfs();
-  	void getOrCreateMedusaTi(int* medusa_ti, int &len);    // rope使用的 medusa_ti, bfs遍历得到
-  	void getOrCreateMedusaMask(int* medusa_mask, int &len);  // attention kernel 使用的 Causal Mask, dfs遍历得到, 也会得到路径上每个取top_k的记录 topk_value_of_paths
+  	void getOrCreateMedusaTi(int** medusa_ti, int &len);    // rope使用的 medusa_ti, bfs遍历得到
+  	void getOrCreateMedusaMask(int** medusa_mask, int &len);  // attention kernel 使用的 Causal Mask, dfs遍历得到, 也会得到路径上每个取top_k的记录 topk_value_of_paths
     void getOutputIds(const int* output_preds, int* output_ids, int* each_path_len, const int medusa_head_num);
     void getBatchedOutputIds(const int* output_preds_batched, int* output_ids_batched, int* each_path_len, const int medusa_head_num, const int batch_num);
     int  getMedusaPathNum();
@@ -83,11 +83,12 @@ public:
     {
         medusa_path_tuples_ =  getMedusaPathsFromLocalFile(medusa_path_, aim_model_name_);
         path_num_ = medusa_path_tuples_.size();
+        std::cout << "MedusaUtils::MedusaUtils() path_num_ = " << path_num_ << std::endl;
         path_tree_.insert(medusa_path_tuples_);
         int* medusa_ti = nullptr;
         int* medusa_mask = nullptr;
-        path_tree_.getOrCreateMedusaTi(medusa_ti, input_len_);
-        path_tree_.getOrCreateMedusaMask(medusa_mask, input_len_);
+        path_tree_.getOrCreateMedusaTi(&medusa_ti, input_len_);
+        path_tree_.getOrCreateMedusaMask(&medusa_mask, input_len_);
 
         // displayPathTuples(medusa_path_tuples_);
     }
@@ -100,8 +101,8 @@ public:
     void displayPathTuples(std::vector<std::vector<int>>& path_tuples);
     std::vector<std::vector<int>>& getPathTuples();
     std::pair<size_t, size_t> resultOffsetAndLength(int batch_idx, int path_idx, int batch_size, int medusa_head_num);
-    void getMedusaTi(int* medusa_ti);
-    void getMedusaMask(int* medusa_mask);
+    void getMedusaTi(int** medusa_ti);
+    void getMedusaMask(int** medusa_mask);
     void getInputLen(int& len);
     void getPathNum(int& path_num);
 public:
