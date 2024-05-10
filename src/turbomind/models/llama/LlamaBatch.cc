@@ -1811,7 +1811,7 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
         medusa_utils_->getInputLen(medusa_input_len);
 
         // GET EnableMedusa
-        for(int batch_id = first; batch_id < last; batch_id++){
+        for(int batch_id = 0; batch_id < mini_batch_size; batch_id++){
             if(medusa_state_vec_[batch_id].inited){
                 enable_medusa_ptr[batch_id] = 1;
             }
@@ -1874,9 +1874,9 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
         // };
 
         std::cout << "[before Attention] token_count = " << token_count << std::endl;
-        dbg_func<int>(context_decoder_ids_buf_, token_count, "[before Attn] context_decoder_ids_buf_ = ");
-        dbg_func<T>(decoder_output_buf_, 10, "[before Attn] decoder_output_buf_ = ");
-        dbg_func<T>(context_decoder_output_buf_, 10, "[before Attn] context_decoder_output_buf_ = ");
+        dbg_func(context_decoder_ids_buf_, token_count, "[before Attn] context_decoder_ids_buf_ = ");
+        dbg_func(decoder_output_buf_, 10, "[before Attn] decoder_output_buf_ = ");
+        dbg_func(context_decoder_output_buf_, 10, "[before Attn] context_decoder_output_buf_ = ");
         model_->forwardUnified(decoder_output_buf_ + first * model_->hidden_units_, // out
                                context_decoder_output_buf_,  // temp
                                context_decoder_input_buf_,   // temp
