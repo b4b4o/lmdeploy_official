@@ -2263,7 +2263,7 @@ bool LlamaBatch<T>::MedusaGenerate(const int inited_index, const int new_index, 
             }
         }
         
-        dbg_func(medusa_all_hidden_states_buf_, hidden_size, "[MedusaGenerate] medusa_all_hidden_states_buf_:");
+        dbg_func(medusa_all_hidden_states_buf_, 10, "[MedusaGenerate] medusa_all_hidden_states_buf_:");
 
         // lm head linear
         if (medusa_logits_buf_ == nullptr) {
@@ -2282,7 +2282,7 @@ bool LlamaBatch<T>::MedusaGenerate(const int inited_index, const int new_index, 
         model_->postDecodeEmbedding(
             medusa_logits_buf_, medusa_local_logits_buf_, medusa_verified_hidden_states_buf_, batch_size);
         
-        dbg_func(medusa_logits_buf_, batch_size * model_->vocab_size_padded_, "[after LMHead] medusa_logits_buf_:");
+        dbg_func(medusa_logits_buf_, batch_size * 10, "[after LMHead] medusa_logits_buf_:");
 
         // sampling
         // src medusa_logits_buf_:[batch, vocab_size] -> dst medusa_token_ids_buf_:[batch, 1]
@@ -2306,6 +2306,8 @@ bool LlamaBatch<T>::MedusaGenerate(const int inited_index, const int new_index, 
         dbg_func(medusa_token_ids_buf_, 10, "[after sampling] medusa_token_ids_buf_ = ");
         // medusa forward
         // H:medusa_verified_hidden_states_buf_[batch_size, hidden_dim] -> [batch_size, medusa_head_num, vocab_size] -> medusa_topk_output_ids_buf_[batch_size, medusa_head_num, top10]
+
+        dbg_func(medusa_verified_hidden_states_buf_, 10, "[after sampling] medusa_verified_hidden_states_buf_ = ");
         model_->medusaForward(medusa_topk_output_ids_buf_, medusa_verified_hidden_states_buf_, batch_size, medusa_top_k_);
         
         dbg_func(medusa_topk_output_ids_buf_, batch_size * medusa_num_heads_ * medusa_top_k_, "[after medusa linear] medusa_topk_output_ids_buf_ = ");
