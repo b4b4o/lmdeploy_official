@@ -2156,6 +2156,7 @@ void LlamaBatch<T>::MedusaVerify(const int inited_index, const int max_init_ctx_
         invokeTransposeAxis01(
             medusa_ref_output_ids_buf_, medusa_token_ids_buf_, medusa_input_length_, inited_index, 1, stream_);
 
+        std::cout << "[after invokeTransposeAxis01()]" <<std::endl;
         int* h_medusa_max_match_length_dst = h_medusa_max_match_length_buf_;
         std::vector<int> inited_input_ids(medusa_input_length_ * inited_index, -1);
         std::vector<int> ref_output_ids(medusa_input_length_ * inited_index, -2);
@@ -2171,16 +2172,18 @@ void LlamaBatch<T>::MedusaVerify(const int inited_index, const int max_init_ctx_
         std::vector<int> unpacked_each_path_len(medusa_path_num_, -1);
         std::vector<int> unpacked_output_ids(inited_index * medusa_path_num_ * (1 + medusa_num_heads_), -1);
 
+        std::cout << "[before getBatchedOutputIds()]" <<std::endl;
         // each_path_len is only consider medusa_path, not include root.
         // input tokens [b, path_num, 1+head_num]
         medusa_utils_->path_tree_.getBatchedOutputIds(inited_input_ids.data(), unpacked_input_ids.data(), unpacked_each_path_len.data(), medusa_num_heads_, inited_index);
         // output pred tokens [b, path_num, 1+head_num]
         medusa_utils_->path_tree_.getBatchedOutputIds(ref_output_ids.data(), unpacked_output_ids.data(), nullptr, medusa_num_heads_, inited_index);
+        std::cout << "[after getBatchedOutputIds()]" <<std::endl;
 
         // copy to Device
         Copy(unpacked_input_ids.data(), inited_index * medusa_path_num_ * (1 + medusa_num_heads_), medusa_input_tokens_buf_);
         Copy(unpacked_output_ids.data(), inited_index * medusa_path_num_ * (1 + medusa_num_heads_), medusa_output_tokens_buf_);
-        Copy(unpacked_each_path_len.data(), inited_index * medusa_path_num_ * (1 + medusa_num_heads_), medusa_each_path_len_buf_);
+        Copy(unpacked_each_path_len.data(), medusa_path_num_, medusa_each_path_len_buf_);
 
         //call batch match
 
@@ -2316,17 +2319,20 @@ bool LlamaBatch<T>::MedusaGenerate(const int inited_index, const int new_index, 
         Copy(medusa_topk_output_ids_buf_, batch_size * medusa_num_heads_ * medusa_top_k_, h_medusa_preds_batched_buf_);
         // src medusa_topk_output_ids_buf_:[batch_size, medusa_head_num, top_k]
         // dst h_pseudo_inputs_buf_: [batch_size, input_len_ - 1]
+        
+        // todo: check this.
         medusa_utils_->path_tree_.getBatchedPseudoIdsFromTree(h_medusa_preds_batched_buf_, medusa_num_heads_, medusa_top_k_, h_medusa_max_match_length_buf_, h_medusa_max_match_idx_buf_, h_pseudo_inputs_buf_, batch_size);
+        
         std::cout << "[in MedusaGenerate] after getBatchedPseudoIdsFromTree" << std::endl;
         // src: [batch_size, input_len_ - 1] -> dst: [input_len_ - 1, batch_size]
         invokeTransposeAxis01(
             h_pseudo_inputs_buf_, h_pseudo_inputs_buf_, batch_size, medusa_input_length_ - 1, 1, stream_);
 
-        //: fake
-        for(int i = 0; i < batch_size * medusa_input_length_ - 1; i++){
-            h_pseudo_inputs_buf_[i] = 1000 + i; 
-        }
-        //: end fake
+        // //: fake
+        // for(int i = 0; i < batch_size * medusa_input_length_ - 1; i++){
+        //     h_pseudo_inputs_buf_[i] = 1000 + i; 
+        // }
+        // //: end fake
         // [LM] [Med batch pos1][Med batch pos2][Med batch pos3][Med batch pos ...]
         Copy(medusa_token_ids_buf_, batch_size, token_ids_buf_ + step * batch_size);
         // Copy(h_pseudo_inputs_buf_, batch_size * (medusa_input_length_ - 1), token_ids_buf_ + step * batch_size * (medusa_input_length_ - 1)); // Medusa Generate
