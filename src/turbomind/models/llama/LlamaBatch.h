@@ -343,6 +343,7 @@ private:
     // used for sampling
     int*  medusa_token_ids_buf_{};
     bool* medusa_finished_buf_{};
+    bool* h_medusa_finished_buf_{};
     int*  medusa_sequence_lengths_{};
 
     // used for verification

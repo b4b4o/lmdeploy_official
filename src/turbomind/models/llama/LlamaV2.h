@@ -162,7 +162,14 @@ private:
                        int             cache_step);
 
     void medusaForward(int* topk_output_ids, const T* input_buf, const size_t batch_size, const int top_k);
-
+    
+    void dynamicDecode(const size_t   batch_size,
+                       const float*   logits,
+                       const int      step,
+                       curandState_t* curand_state,
+                       int*           end_ids,
+                       int*           output_ids,
+                       bool*          finished);
 private:
     friend class LlamaBatch<T>;
 
@@ -198,6 +205,7 @@ private:
 
     std::unique_ptr<UnifiedDecoder<T>> unified_decoder_;
     DynamicDecodeLayer<float>*         dynamic_decode_layer_{};
+    DynamicDecodeLayer<float>*         medusa_dynamic_decode_layer_{};
 
     std::shared_ptr<SharedState>   shared_state_;
     ffi_api_lock_ctrl_t            ffi_lock_;
