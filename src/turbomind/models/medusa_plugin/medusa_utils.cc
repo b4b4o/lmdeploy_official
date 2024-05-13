@@ -282,6 +282,7 @@ void MedusaPathTree::getBatchedPseudoIdsFromTree(const int* medusa_preds_batched
 }
 
 void MedusaPathTree::getLastMatchIdx(const int& max_match_idx, const int& max_match_count, int& last_input_idx){
+    std::cout << "max_match_idx = " << max_match_idx << ", max_match_count = " << max_match_count << std::endl;
     last_input_idx = input_token_idx_of_paths[max_match_idx][1 + max_match_count];
 }
 
@@ -293,7 +294,9 @@ void MedusaPathTree::getBatchedLastMatchIdx(const int* max_match_idx, const int*
     output :
         last_input_idx : [batch_size],
     */
+    std::cout << "[getBatchedLastMatchIdx]" << std::endl; 
     for(int b_id = 0; b_id < batch_size; b_id++){
+        std::cout << "batch:" << b_id << std::endl;
         getLastMatchIdx(max_match_idx[b_id], max_match_count[b_id], last_input_idx[b_id]);
     }
 } 
