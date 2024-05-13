@@ -1862,7 +1862,7 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
         Copy(medusa_ti_ptr, medusa_input_len, d_medusa_ti_);
         Copy(medusa_mask_ptr, medusa_input_len * medusa_input_len, d_medusa_mask_);
         Copy(enable_medusa_ptr, mini_batch_size, d_enable_medusa_);
-
+        check_cuda_error(cudaStreamSynchronize(stream_));
         // medusa_utils_->getMedusaMask(medusa_mask);
         // medusa_utils_->getMedusaTi(medusa_ti);
         // medusa_utils_->getInputLen(medusa_input_len);
@@ -2170,7 +2170,6 @@ void LlamaBatch<T>::MedusaVerify(const int inited_index, const int max_init_ctx_
         Copy(medusa_inited_input_ids_buf_, medusa_input_length_ * inited_index, inited_input_ids.data());
         // src:[batch, ?]
         Copy(medusa_ref_output_ids_buf_, medusa_input_length_ * inited_index, ref_output_ids.data());
-        
         // here to call MedusaUtils::GetOutputIds;
         // Unpack the tokens to each path tokens.
         // [b, path_num, 1 + head_num]
@@ -2178,6 +2177,7 @@ void LlamaBatch<T>::MedusaVerify(const int inited_index, const int max_init_ctx_
         std::vector<int> unpacked_each_path_len(medusa_path_num_, -1);
         std::vector<int> unpacked_output_ids(inited_index * medusa_path_num_ * (1 + medusa_num_heads_), -1);
 
+        check_cuda_error(cudaStreamSynchronize(stream_));
         std::cout << "[before getBatchedOutputIds()]" <<std::endl;
         // each_path_len is only consider medusa_path, not include root.
         // input tokens [b, path_num, 1+head_num]
@@ -2190,7 +2190,7 @@ void LlamaBatch<T>::MedusaVerify(const int inited_index, const int max_init_ctx_
         Copy(unpacked_input_ids.data(), inited_index * medusa_path_num_ * (1 + medusa_num_heads_), medusa_input_tokens_buf_);
         Copy(unpacked_output_ids.data(), inited_index * medusa_path_num_ * (1 + medusa_num_heads_), medusa_output_tokens_buf_);
         Copy(unpacked_each_path_len.data(), medusa_path_num_, medusa_each_path_len_buf_);
-
+        check_cuda_error(cudaStreamSynchronize(stream_));
         //call batch match
 
         std::cout << "[before batched Match]" <<std::endl;
@@ -2207,6 +2207,7 @@ void LlamaBatch<T>::MedusaVerify(const int inited_index, const int max_init_ctx_
         // matched_idx    : [b]
         Copy(medusa_max_match_length_buf_, inited_index, h_medusa_max_match_length_buf_);
         Copy(medusa_max_match_idx_buf_, inited_index, h_medusa_max_match_idx_buf_);
+        check_cuda_error(cudaStreamSynchronize(stream_));
         // todo: call MedusaUtil::getBatchedLastMatchIdx to get last_match_idx
         std::cout << "[after batched Match]" <<std::endl;
         medusa_utils_->path_tree_.getBatchedLastMatchIdx(h_medusa_max_match_length_buf_, h_medusa_max_match_idx_buf_, h_medusa_last_match_idx_buf_, inited_index);
@@ -2214,7 +2215,7 @@ void LlamaBatch<T>::MedusaVerify(const int inited_index, const int max_init_ctx_
         //medusa_verified_packed_path_:[b, 1 + medusa_head_num], used for gather output
         medusa_utils_->path_tree_.getBatchedMatchedPartIdx(h_medusa_max_match_length_buf_, h_medusa_max_match_idx_buf_, h_medusa_verified_packed_path_, inited_index, medusa_num_heads_);
         Copy(h_medusa_verified_packed_path_, inited_index * medusa_num_heads_, medusa_verified_packed_path_);
-
+        check_cuda_error(cudaStreamSynchronize(stream_));
 
 
 
@@ -2278,7 +2279,7 @@ bool LlamaBatch<T>::MedusaGenerate(const int inited_index, const int new_index, 
                     Copy(medusa_all_hidden_states_buf_src, hidden_size, medusa_verified_hidden_states_buf_dst);
             }
         }
-        
+        check_cuda_error(cudaStreamSynchronize(stream_));
         dbg_func(medusa_all_hidden_states_buf_, 10, "[MedusaGenerate] medusa_all_hidden_states_buf_:");
 
         // lm head linear
@@ -2330,6 +2331,7 @@ bool LlamaBatch<T>::MedusaGenerate(const int inited_index, const int new_index, 
 
         // D2H, using MedusaUtils
         Copy(medusa_topk_output_ids_buf_, batch_size * medusa_num_heads_ * medusa_top_k_, h_medusa_preds_batched_buf_);
+        check_cuda_error(cudaStreamSynchronize(stream_));
         // src medusa_topk_output_ids_buf_:[batch_size, medusa_head_num, top_k]
         // dst h_pseudo_inputs_buf_: [batch_size, input_len_ - 1]
         
@@ -2350,6 +2352,7 @@ bool LlamaBatch<T>::MedusaGenerate(const int inited_index, const int new_index, 
         Copy(medusa_token_ids_buf_, batch_size, token_ids_buf_ + step * batch_size);
         // Copy(h_pseudo_inputs_buf_, batch_size * (medusa_input_length_ - 1), token_ids_buf_ + step * batch_size * (medusa_input_length_ - 1)); // Medusa Generate
         Copy(h_pseudo_inputs_buf_, batch_size * (medusa_input_length_ - 1), token_ids_buf_ + (step + 1) * batch_size); // Medusa Generate
+        check_cuda_error(cudaStreamSynchronize(stream_));
         dbg_func(h_pseudo_inputs_buf_, batch_size * (medusa_input_length_ - 1), "[after sampling] h_pseudo_inputs_buf_ = ");
 
 
