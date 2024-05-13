@@ -2084,6 +2084,11 @@ void LlamaBatch<T>::MedusaCopy(const int mini_batch_size, const int first)
             Copy(context_decoder_ids_src, len, medusa_inited_input_ids_buf_dst);
             // H copy [input_len_, hidden_dims] buffer to dst(batch_idx) 
             Copy(context_decoder_output_src, len * hidden_units, medusa_all_hidden_states_buf_dst);
+
+            check_cuda_error(cudaStreamSynchronize(stream_));
+            std::cout << "In MedusaCopy, len = " << len << std::endl;
+            dbg_func(context_decoder_ids_src, len, "In MedusaCopy, context_decoder_ids_src = ");
+            dbg_func(context_decoder_output_src, len, "In MedusaCopy, context_decoder_output_src = ");
         }
         else {
             //todo
@@ -2303,14 +2308,14 @@ bool LlamaBatch<T>::MedusaGenerate(const int inited_index, const int new_index, 
 
         // sampling
         // src medusa_logits_buf_:[batch, vocab_size] -> dst medusa_token_ids_buf_:[batch, 1]
-        model_->dynamicDecode(medusa_token_ids_buf_,
-                              medusa_finished_buf_,
-                              medusa_sequence_lengths_,
+        model_->dynamicDecode(medusa_token_ids_buf_, // dst: [b, s]
+                              medusa_finished_buf_,  // [b]
+                              medusa_sequence_lengths_, // seq_len, [b]
                               &should_stop,
                               state_->curand_state,
                               &inputs_,
                               &outputs_,
-                              medusa_logits_buf_,
+                              medusa_logits_buf_, // logits [b, vocab_size]
                               seq_limit_len_,
                               init_context_length_,
                               d_end_ids_buf_,
@@ -2320,7 +2325,7 @@ bool LlamaBatch<T>::MedusaGenerate(const int inited_index, const int new_index, 
                               session_len_ * 2,
                               batch_size,
                               step);
-        dbg_func(medusa_token_ids_buf_, 10, "[after sampling] medusa_token_ids_buf_ = ");
+        dbg_func(medusa_token_ids_buf_, batch_size, "[after sampling] medusa_token_ids_buf_ = ");
         // medusa forward
         // H:medusa_verified_hidden_states_buf_[batch_size, hidden_dim] -> [batch_size, medusa_head_num, vocab_size] -> medusa_topk_output_ids_buf_[batch_size, medusa_head_num, top10]
 
