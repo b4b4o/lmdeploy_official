@@ -257,8 +257,8 @@ void MedusaPathTree::getPseudoIdsFromTree(const int* medusa_preds, const int med
 
         const int& medusa_head_id = medusaTi_[counter] - 1;
         const int& medusa_head_value = medusa_preds[medusa_head_id * top_k + topk_value];
-        std::cout << "counter = " << counter << ", offset = " << medusa_head_id * top_k + topk_value << std::endl; 
-        std::cout << "topk-value : " << topk_value << ", choose head:" << medusa_head_id << ", getvalue = " << medusa_head_value << std::endl;
+        // std::cout << "counter = " << counter << ", offset = " << medusa_head_id * top_k + topk_value << std::endl; 
+        // std::cout << "topk-value : " << topk_value << ", choose head:" << medusa_head_id << ", getvalue = " << medusa_head_value << std::endl;
         pseudo_inputs[counter - 1] = medusa_head_value;
         counter++;
     }
