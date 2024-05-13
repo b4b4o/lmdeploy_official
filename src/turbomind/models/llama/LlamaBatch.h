@@ -354,6 +354,8 @@ private:
     int* h_medusa_last_match_idx_buf_{};
     int* h_pseudo_inputs_buf_{};
     int* h_medusa_preds_batched_buf_{};
+    int* medusa_verified_packed_path_{};
+    int* h_medusa_verified_packed_path_{};
 
     int* medusa_topk_output_ids_buf_{};
 

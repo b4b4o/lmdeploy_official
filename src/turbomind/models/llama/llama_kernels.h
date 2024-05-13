@@ -74,11 +74,13 @@ void invokeGatherOutput(int*         output_ids,
                         const int*   last_input_ids,
                         const int*   verified_length,
                         const int*   context_length,
+                        const int*   verified_packed_path,
                         int          max_context_len,
                         int          max_gen_step,
                         int          max_output_len,
                         int          batch_size,
                         int          stride_len,
+                        int          medusa_head_num,
                         cudaStream_t stream);
 
 void invokeUpdateOutput(int**        request_output_ids_ptrs,

@@ -791,6 +791,8 @@ void LlamaBatch<T>::AllocateBuffer(size_t batch_size, size_t session_len)
         (int*)allocator_->reMalloc(medusa_topk_output_ids_buf_, sizeof(int) * medusa_num_heads_ * batchxbeam * medusa_top_k_, true);
 
     medusa_verified_length_ = (int*)allocator_->reMalloc(medusa_verified_length_, sizeof(int) * batchxbeam, true);
+    medusa_verified_packed_path_ = (int*)allocator_->reMalloc(medusa_verified_packed_path_, sizeof(int) * batchxbeam * (1 + medusa_num_heads_), true);
+    h_medusa_verified_packed_path_ = (int*)allocator_->reMalloc(h_medusa_verified_packed_path_, sizeof(int) * batchxbeam * (1 + medusa_num_heads_), true, true);
 
     last_input_ids_buf_ =
         (int*)allocator_->reMalloc(last_input_ids_buf_, sizeof(int) * batchxbeam * session_len_, true);
@@ -976,6 +978,8 @@ void LlamaBatch<T>::FreeBuffer()
         allocator_->free((void**)&medusa_topk_output_ids_buf_);
 
         allocator_->free((void**)&medusa_verified_length_);
+        allocator_->free((void**)&medusa_verified_packed_path_);
+        allocator_->free((void**)&h_medusa_verified_packed_path_, true);
 
         allocator_->free((void**)&last_input_ids_buf_);
 
@@ -1323,17 +1327,19 @@ auto LlamaBatch<T>::Finish(GenerationState& g) -> std::vector<Signal>
 
         // [s,b] -> [b,s] and skip padding in [context_len, max_context_len)
         // todo:fix this
-        invokeGatherOutput(state_->output_ids, // dst
-                           state_->input_ids,
-                           token_ids_buf_, // src
-                           last_input_ids_buf_,
+        invokeGatherOutput(state_->output_ids, // dst , output_ids;
+                           state_->input_ids,  // next_input_ids;
+                           token_ids_buf_, // src, now generate
+                           last_input_ids_buf_, //  last generate
                            medusa_verified_length_,
                            init_context_length_,
+                           medusa_verified_packed_path_,
                            g.max_init_ctx_len,
                            g.step + medusa_input_length_,
                            session_len_,
                            batch_size - g.partial,
                            medusa_input_length_,
+                           medusa_num_heads_,
                            stream_);
 
         Clear(token_ids_buf_, batch_size * session_len_);
@@ -2204,6 +2210,13 @@ void LlamaBatch<T>::MedusaVerify(const int inited_index, const int max_init_ctx_
         // todo: call MedusaUtil::getBatchedLastMatchIdx to get last_match_idx
         std::cout << "[after batched Match]" <<std::endl;
         medusa_utils_->path_tree_.getBatchedLastMatchIdx(h_medusa_max_match_length_buf_, h_medusa_max_match_idx_buf_, h_medusa_last_match_idx_buf_, inited_index);
+        
+        //medusa_verified_packed_path_:[b, 1 + medusa_head_num], used for gather output
+        medusa_utils_->path_tree_.getBatchedMatchedPartIdx(h_medusa_max_match_length_buf_, h_medusa_max_match_idx_buf_, h_medusa_verified_packed_path_, inited_index, medusa_num_heads_);
+        Copy(h_medusa_verified_packed_path_, inited_index * medusa_num_heads_, medusa_verified_packed_path_);
+
+
+
 
         // auto diff = [](const std::vector<int>& lhs,
         //                const std::vector<int>& rhs,

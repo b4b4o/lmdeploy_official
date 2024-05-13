@@ -239,56 +239,71 @@ __global__ void KernelWrapper(Params params)
 
 }  // namespace
 
-__global__ void gatherOutput(int*       output_ids,
-                             int*       next_input_ids,
-                             const int* ids,
-                             const int* last_input_ids,
-                             const int* verified_length,
-                             const int* context_length,
-                             int        max_context_len,
-                             int        max_gen_step,
-                             int        max_output_len,
-                             int        stride_len,
-                             int        batch_size)
+__global__ void gatherOutput(int*       output_ids,     // [b, s]
+                             int*       next_input_ids, // [b, s]
+                             const int* ids,            // 历史input + 通过 MedusaGenerate 后产生的 1+len_, [b, s]
+                             const int* last_input_ids, // 一开始输入的input_ids [b, s]
+                             const int* verified_length,// MedusaVerified length [b]
+                             const int* context_length, // init_context_length_ 整体的history+输入长度 [b]
+                             const int* verified_packed_path,  // [b, 1 + medusa_head],  value = packed_idx, 实际申请空间[b, session_len_]
+                             int        max_context_len,// 当前seq的context的最大长度
+                             int        max_gen_step,   // 输入的len_ + g.step最大值，也就是最大的长度？
+                             int        max_output_len, // session_len_
+                             int        stride_len,     // len_
+                             int        batch_size,
+                             int        medusa_head_num)
 {
     const int batch_id     = blockIdx.x;
-    const int context_len  = context_length[batch_id];
+    const int context_len  = context_length[batch_id]; // his+input
     const int verified_len = verified_length ? verified_length[batch_id] : 0;
-    output_ids += batch_id * max_output_len;
-    for (int src_idx = threadIdx.x; src_idx < max_gen_step; src_idx += blockDim.x) {
+    output_ids += batch_id * max_output_len; // base address
+    if(next_input_ids){
+        next_input_ids += batch_id * max_output_len;
+    }
+    if(verified_packed_path){
+        verified_packed_path += batch_id * (1 + medusa_head_num);
+    }
+    for (int src_idx = threadIdx.x; src_idx < max_gen_step; src_idx += blockDim.x) { // +=128
         // skip padding for src
-        if (context_len <= src_idx && src_idx < max_context_len) {
+        if (context_len <= src_idx && src_idx < max_context_len) { // (1)
             continue;
         }
 
-        if (src_idx < max_gen_step - stride_len) {
+        if (src_idx < max_gen_step - stride_len) { // before LM_head
             // skip padding for dst
-            const int dst_idx = src_idx < context_len ? src_idx : src_idx - (max_context_len - context_len);
-            if (dst_idx < max_output_len) {
+            const int dst_idx = src_idx < context_len ? src_idx : src_idx - (max_context_len - context_len); // ?
+            if (dst_idx < max_output_len) { // (2)
                 output_ids[dst_idx] = ids[src_idx * batch_size + batch_id];
             }
         }
-        else {
+        else { // after LM_head(include)
             // gather next input ids
-            const int input_dst_idx       = src_idx - (max_gen_step - stride_len);
-            next_input_ids[input_dst_idx] = ids[src_idx * batch_size + batch_id];
-            const int last_src_idx        = src_idx - (max_gen_step - stride_len);
+            const int input_dst_idx       = src_idx - (max_gen_step - stride_len); // src_idx - g.step
+            if(next_input_ids){
+                next_input_ids[input_dst_idx] = ids[src_idx * batch_size + batch_id]; // 复制 now generate部分
+            }
+            const int last_src_idx        = src_idx - (max_gen_step - stride_len); // src_idx - g.step
 
-            if (src_idx != max_gen_step - 1 && last_src_idx == 0) {
+            if (src_idx != max_gen_step - 1 && last_src_idx == 0) {//LMhead部分 前面copy过了，不要在copy
                 continue;
             }
+            // last_src_idx != 0
             // gather verified id to output ids
-            if (last_input_ids && last_src_idx <= verified_len) {
+            if (last_input_ids && last_src_idx <= verified_len) {// 这里需要改成从对应的地方取，多传入一个verified:[batch, medusa_head_len]
+                // 如果传入了这个，说明要进行映射
+                int true_packed_idx = (verified_packed_path) ? verified_packed_path[last_src_idx] : last_src_idx;
+        
                 // minus one to skip last lm head id
-                const int dst_idx = src_idx - (max_context_len - context_len) - 1;
+                const int dst_idx = src_idx - (max_context_len - context_len) - 1; // 缩去掉padding部分
                 if (dst_idx < max_output_len) {
-                    output_ids[dst_idx] = last_input_ids[last_src_idx * batch_size + batch_id];
+                    output_ids[dst_idx] = last_input_ids[true_packed_idx * batch_size + batch_id];
                 }
             }
+
             // gather current lm head id to output ids
-            if (src_idx == max_gen_step - 1) {
-                const int new_src_idx = src_idx - (stride_len - 1);
-                const int dst_idx     = src_idx - (max_context_len - context_len) - (stride_len - verified_len) + 1;
+            if (src_idx == max_gen_step - 1) { // 最后一位（额外做的事情）
+                const int new_src_idx = src_idx - (stride_len - 1); //src_idx - (len_  - 1) 即第一位LM Head
+                const int dst_idx     = src_idx - (max_context_len - context_len) - (stride_len - verified_len) + 1;// src_idx - len_ - (len_ - verified_len) + 1 
                 if (dst_idx < max_output_len) {
                     output_ids[dst_idx] = ids[new_src_idx * batch_size + batch_id];
                 }
@@ -297,17 +312,19 @@ __global__ void gatherOutput(int*       output_ids,
     }
 }
 
-void invokeGatherOutput(int*         output_ids,
-                        int*         next_input_ids,
-                        const int*   ids,
-                        const int*   last_input_ids,
-                        const int*   verified_length,
-                        const int*   context_length,
-                        int          max_context_len,
-                        int          max_gen_step,
-                        int          max_output_len,
-                        int          batch_size,
-                        int          stride_len,
+void invokeGatherOutput(int*         output_ids,     // dst: state->output_ids [b, s]
+                        int*         next_input_ids, // dst: state->input_ids [b, s]
+                        const int*   ids,            // src: token_ids_buf_ [b, s]
+                        const int*   last_input_ids, // last_input_ids_buf_
+                        const int*   verified_length,// medusa_verified_length_
+                        const int*   context_length, // init_context_length_
+                        const int*   verified_packed_path, // [b, 1 + medusa_head],  value = packed_idx, 实际申请空间[b, session_len_] 
+                        int          max_context_len,// g.max_init_ctx_len
+                        int          max_gen_step,   // g.step + medusa_input_length_
+                        int          max_output_len, // session_len_
+                        int          batch_size,     // batch_size - g.partial
+                        int          stride_len,     // medusa_input_length_
+                        int          medusa_head_num,
                         cudaStream_t stream)
 {
     int block_size = 128;
@@ -318,11 +335,13 @@ void invokeGatherOutput(int*         output_ids,
                                                        last_input_ids,
                                                        verified_length,
                                                        context_length,
+                                                       verified_packed_path,
                                                        max_context_len,
                                                        max_gen_step,
                                                        max_output_len,
                                                        stride_len,
-                                                       batch_size);
+                                                       batch_size,
+                                                       medusa_head_num);
 }
 
 __global__ void updateOutput(int**      request_output_ids_ptrs,
