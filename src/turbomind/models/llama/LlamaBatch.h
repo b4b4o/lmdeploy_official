@@ -383,7 +383,7 @@ private:
     void dbg_func(U* src, int len, std::string cout_str){
         std::vector<U>tmps1(len);
         Copy(src, len, tmps1.data());
-
+        cudaStreamSynchronize(stream_);
         std::cout << cout_str << std::endl;
         for(int i = 0; i < len; i++){
             std::cout << " " << tmps1[i] ;

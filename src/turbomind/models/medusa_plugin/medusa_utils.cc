@@ -156,13 +156,13 @@ void MedusaPathTree::getOrCreateMedusaMask(int** medusa_mask, int &len){
     path_num_ = input_token_idx_of_paths.size();
     std::cout << "[MedusaPathTree::getOrCreateMedusaMask] after dfs, path_num_ = " << path_num_ << std::endl;
 #if 0
-    std::cout << "[debug] medusaMask_ = " << std::endl;
-    for(int i = 0; i < len_; i++){
-        for(int j = 0; j < len_; j++){
-            std::cout << medusaMask_[i * len_ + j] << " ";
-        }
-        std::cout << std::endl;
-    }
+    // std::cout << "[debug] medusaMask_ = " << std::endl;
+    // for(int i = 0; i < len_; i++){
+    //     for(int j = 0; j < len_; j++){
+    //         std::cout << medusaMask_[i * len_ + j] << " ";
+    //     }
+    //     std::cout << std::endl;
+    // }
     std::cout << "[debug] input_token_idx_of_paths = " << std::endl;
     for(auto indices: input_token_idx_of_paths){
         for(int v: indices){
@@ -283,7 +283,8 @@ void MedusaPathTree::getBatchedPseudoIdsFromTree(const int* medusa_preds_batched
 
 void MedusaPathTree::getLastMatchIdx(const int& max_match_idx, const int& max_match_count, int& last_input_idx){
     std::cout << "max_match_idx = " << max_match_idx << ", max_match_count = " << max_match_count << std::endl;
-    last_input_idx = input_token_idx_of_paths[max_match_idx][1 + max_match_count];
+    last_input_idx = input_token_idx_of_paths[max_match_idx][max_match_count];
+    std::cout << "last_input_idx = " << last_input_idx << std::endl;
 }
 
 void MedusaPathTree::getBatchedLastMatchIdx(const int* max_match_idx, const int* max_match_count, int* last_input_idx, const int batch_size){
