@@ -355,6 +355,9 @@ private:
     int* medusa_topk_output_ids_buf_{};
 
     int* medusa_verified_length_{};
+    int* h_medusa_verified_length_{};
+    int* h_medusa_sequences_length_{};
+    int* h_medusa_cache_len_{};
 
     int* last_input_ids_buf_{};
 
