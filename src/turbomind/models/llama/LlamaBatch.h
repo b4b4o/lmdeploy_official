@@ -13,11 +13,21 @@
 #include "src/turbomind/utils/allocator.h"
 #include "src/turbomind/utils/cublasMMWrapper.h"
 #include "src/turbomind/utils/cuda_utils.h"
+#include "src/turbomind/models/medusa_plugin/medusa_utils.h"
 #include <condition_variable>
 #include <mutex>
 #include <type_traits>
 
 namespace turbomind {
+
+struct MedusaState {
+    int  index;
+    int  len;
+    int  verified_len;
+    bool inited;
+
+    friend std::ostream& operator<<(std::ostream& os, const MedusaState& medusa_state);
+};
 
 struct BatchState {
     int*  h_prompt_length;  // history + input, ignore generated
@@ -310,29 +320,71 @@ private:
     int  medusa_num_heads_ = 0;
     bool medusa_enable_    = false;
 
-    int* medusa_verified_length_{};
-    int* h_medusa_verified_length_{};
+    std::vector<MedusaState> medusa_state_vec_;
 
-    int* h_medusa_cache_len_{};
-    int* h_medusa_sequences_length_{};
+    // used for verification
+    T*   medusa_inited_hidden_states_buf_{};  // updated in MedusaCopy
+    int* medusa_inited_input_ids_buf_{};      // updated in MedusaCopy
 
-    T*   medusa_inited_hidden_states_buf_{};
-    int* medusa_inited_input_ids_buf_{};
+    // used for generation
+    T* medusa_all_hidden_states_buf_{};       // updated in MedusaCopy
+    T* medusa_verified_hidden_states_buf_{};  // updated in MedusaVerify
 
-    T* medusa_all_hidden_states_buf_{};
-
+    // used for logits
     float* medusa_logits_buf_{};
     float* medusa_local_logits_buf_{};
 
+    // used for sampling
     int*  medusa_token_ids_buf_{};
     bool* medusa_finished_buf_{};
+    bool* h_medusa_finished_buf_{};
     int*  medusa_sequence_lengths_{};
+
+    // used for verification
+    int* medusa_ref_output_ids_buf_{};
+    int* medusa_max_match_length_buf_{};
+    int* h_medusa_max_match_length_buf_{};
+    int* medusa_max_match_idx_buf_{};
+    int* h_medusa_max_match_idx_buf_{};
+    int* h_medusa_last_match_idx_buf_{};
+    int* h_pseudo_inputs_buf_{};
+    int* h_medusa_preds_batched_buf_{};
+    int* medusa_verified_packed_path_{};
+    int* h_medusa_verified_packed_path_{};
+
+    int* medusa_topk_output_ids_buf_{};
+
+    int* medusa_verified_length_{};
 
     int* last_input_ids_buf_{};
 
-    T* medusa_verified_hidden_states_buf_{};
+    int max_len_ = 0;
 
-    int* medusa_topk_output_ids_buf_{};
+    // packed input length
+    int medusa_input_length_ = 0;
+    int medusa_path_num_ = 0;
+    int medusa_top_k_ = 10;
+
+    int* medusa_input_tokens_buf_{};
+    int* medusa_output_tokens_buf_{};
+    int* medusa_each_path_len_buf_{};
+
+    std::unique_ptr<MedusaUtils> medusa_utils_;
+    int* d_medusa_ti_{};
+    int* d_medusa_mask_{};
+    int* d_enable_medusa_{};
+
+    template<typename U>
+    void dbg_func(U* src, int len, std::string cout_str){
+        std::vector<U>tmps1(len);
+        Copy(src, len, tmps1.data());
+        cudaStreamSynchronize(stream_);
+        std::cout << cout_str << std::endl;
+        for(int i = 0; i < len; i++){
+            std::cout << " " << tmps1[i] ;
+        }
+        std::cout << std::endl;
+    };
 };
 
 }  // namespace turbomind

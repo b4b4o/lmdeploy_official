@@ -106,5 +106,4 @@ void invokeBatchTopK(void*        workspace,
                      const int    vocab_size_padded,
                      cudaStream_t stream,
                      const int    batch_size);
-
 }  // namespace turbomind

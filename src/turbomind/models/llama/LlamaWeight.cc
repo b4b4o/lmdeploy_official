@@ -68,7 +68,6 @@ LlamaWeight<T>::LlamaWeight(size_t     head_num,
     }
 
     mallocWeights();
-
     if (medusa_enable_) {
         medusa_weight = std::make_unique<MedusaWeight<T>>(medusa_num_heads,
                                                           medusa_num_layers,
