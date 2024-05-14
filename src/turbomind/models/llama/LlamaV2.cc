@@ -441,15 +441,11 @@ void LlamaV2<T>::dynamicDecode(int*            token_ids,
 }
 
 template<typename T>
-void LlamaV2<T>::dynamicDecode(const size_t   batch_size,
-                               const float*   logits,
-                               const int      step,
-                               curandState_t* curand_state,
-                               int*           end_ids,
-                               int*           output_ids,
-                               bool*          finished)
+void LlamaV2<T>::dynamicDecode(
+    const size_t batch_size, const float* logits, curandState_t* curand_state, int* end_ids, int* output_ids)
 {
     const int ite              = 0;
+    const int step             = 0;
     const int max_input_length = 0;
 
     std::unordered_map<std::string, Tensor> dynamic_decode_input_tensors{
@@ -463,7 +459,7 @@ void LlamaV2<T>::dynamicDecode(const size_t   batch_size,
 
     std::unordered_map<std::string, Tensor> dynamic_decode_output_tensors{
         {"output_ids", {MEMORY_GPU, TYPE_INT32, {1U, batch_size, 1U}, output_ids}},
-        {"finished", {MEMORY_GPU, TYPE_BOOL, {batch_size}, finished}},
+        {"finished", {MEMORY_GPU, TYPE_BOOL, {batch_size}, nullptr}},
         {"sequence_length", {MEMORY_GPU, TYPE_INT32, {batch_size}, nullptr}},
         {"curand_state", {MEMORY_GPU, TYPE_VOID, {batch_size}, curand_state}},
     };

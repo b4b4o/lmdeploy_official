@@ -1098,7 +1098,7 @@ void LlamaBatch<T>::InitializeSampling(const GenerationState& g)
 
     // seq_limit_len_, will be compared to `step` instead of `sequence_length`, so padding len should be accounted for
     for (int i = 0; i < batch_size; ++i) {
-        h_seq_limit_len_[i] = state_->seq_len_limit[i] + (g.max_init_ctx_len - state_->h_context_length[i]);
+        h_seq_limit_len_[i] = state_->seq_len_limit[i] + (g.max_init_ctx_len - h_medusa_sequences_length_[i]);
     }
     Copy(h_seq_limit_len_, batch_size, seq_limit_len_);
 
@@ -1326,7 +1326,6 @@ auto LlamaBatch<T>::Finish(GenerationState& g) -> std::vector<Signal>
     }
 
     Copy(state_->output_ids, batch_size * session_len_, h_output_ids_);
-    Copy(finished_buf_, batch_size, state_->h_finished);
     Copy(h_medusa_cache_len_, batch_size, state_->h_context_length);
 
     Copy(sampled_logprobs_, batch_size * kMaxLogProb, h_sampled_logprobs_);
@@ -1787,6 +1786,9 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
             h_medusa_cache_len_[i]        = state_->sequences[i]->cache_len;
             h_medusa_sequences_length_[i] = state_->sequences[i]->cache_len + 1;
             state_->sequences[i]->iter += 1;
+            if (h_medusa_cache_len_[i] >= h_seq_limit_len_[i]) {
+                state_->h_finished[i] = true;
+            }
         }
     }
 
@@ -1916,11 +1918,9 @@ void LlamaBatch<T>::MedusaVerify(const int inited_count, const int max_init_ctx_
                                     (1 + medusa_num_heads_) * inited_count);
         model_->dynamicDecode((1 + medusa_num_heads_) * inited_count,
                               medusa_logits_buf_,
-                              0,
                               state_->curand_state,
                               d_end_ids_buf_,
-                              medusa_token_ids_buf_,
-                              nullptr);
+                              medusa_token_ids_buf_);
         Copy(medusa_token_ids_buf_, (1 + medusa_num_heads_) * inited_count, ref_output_ids.data());
 
         auto diff = [](const std::vector<int>& lhs,
@@ -1999,28 +1999,14 @@ void LlamaBatch<T>::MedusaGenerate(const int max_init_ctx_len,
 
     model_->postDecodeEmbedding(
         medusa_logits_buf_, medusa_local_logits_buf_, medusa_verified_hidden_states_buf_, batch_size);
-    model_->dynamicDecode(medusa_token_ids_buf_,
-                          finished_buf_,
-                          medusa_sequence_lengths_,
-                          &medusa_should_stop,
-                          state_->curand_state,
-                          &inputs_,
-                          &outputs_,
-                          medusa_logits_buf_,
-                          seq_limit_len_,
-                          init_context_length_,
-                          d_end_ids_buf_,
-                          step,
-                          0,
-                          max_init_ctx_len,
-                          session_len_ * 2,
-                          batch_size);
+
+    model_->dynamicDecode(batch_size, medusa_logits_buf_, state_->curand_state, d_end_ids_buf_, medusa_token_ids_buf_);
 
     model_->medusaForward(medusa_topk_output_ids_buf_, medusa_verified_hidden_states_buf_, batch_size);
     invokeTransposeAxis01(
         medusa_topk_output_ids_buf_, medusa_topk_output_ids_buf_, batch_size, medusa_num_heads_, 1, stream_);
 
-    Copy(medusa_token_ids_buf_ + step * batch_size, batch_size, token_ids_buf_ + step * batch_size);
+    Copy(medusa_token_ids_buf_, batch_size, token_ids_buf_ + step * batch_size);
     Copy(medusa_topk_output_ids_buf_, batch_size * medusa_num_heads_, token_ids_buf_ + (step + 1) * batch_size);
 }
 
