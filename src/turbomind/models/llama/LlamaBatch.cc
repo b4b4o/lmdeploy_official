@@ -1111,9 +1111,11 @@ LlamaBatch<T>::LlamaBatch(
 
     // todo: fix this to config.
     std::string medusa_path_filename = "/workdir/lmdeploy_official/src/turbomind/models/medusa_plugin/medusa_choices.info";
-    std::string aim_model_name = "mc_sim_7b_63";
+    // std::string aim_model_name = "mc_sim_7b_63";
+    std::string aim_model_name = "only_top1";
     medusa_utils_ = std::make_unique<MedusaUtils>(medusa_path_filename, aim_model_name);
     medusa_utils_->getInputLen(medusa_input_length_); // 64
+    std::cout << "[debugbzw] medusa_input_length_ = " << medusa_input_length_ << std::endl;
     medusa_utils_->getPathNum(medusa_path_num_);
 
     AllocateBuffer(max_batch_size_, session_len_);
