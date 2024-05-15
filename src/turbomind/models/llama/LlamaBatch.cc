@@ -1402,14 +1402,16 @@ auto LlamaBatch<T>::Finish(GenerationState& g) -> std::vector<Signal>
     for (int i = 0; i < batch_size; ++i) {
             ++state_->h_context_length[i];
     }
-    // todo:check this stop is still ok?
     for(int i = 0; i < batch_size; i++){
-        if((state_->sequences[i]->cache_len) >= h_seq_limit_len_[i]){
+        if((state_->h_context_length[i]) >= h_seq_limit_len_[i]){
             state_->h_finished[i] = true;
+            //fixme: need check this, after combine KVCache modify.
+            state_->h_context_length[i] = h_seq_limit_len_[i]; 
         }else{
             state_->h_finished[i] = false;
         } 
     }
+
 
     {  // set output tokens ids and sequence length
         int* output_ptr = h_output_ids_;
@@ -1462,6 +1464,18 @@ auto LlamaBatch<T>::Finish(GenerationState& g) -> std::vector<Signal>
                 ss << " " << t;
             }
             TM_LOG_INFO("[Finish] slot %d, tokens [%s]", i, ss.str().c_str());
+        }
+    }
+    if (rank_ == 0) {
+        for (int i = 0; i < batch_size; ++i) {
+            std::vector<int> tokens(state_->h_context_length[i]);
+            Copy(state_->output_ids + i * session_len_, tokens.size(), tokens.data());
+            cudaStreamSynchronize(stream_);
+            std::stringstream ss;
+            for (const auto& t : tokens) {
+                ss << " " << t;
+            }
+            std::cout << "[Finish] slot " << i << ", tokens [" << ss.str().c_str() << "]" << std::endl;
         }
     }
 
