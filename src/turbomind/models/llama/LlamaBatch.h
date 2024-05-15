@@ -20,14 +20,7 @@
 
 namespace turbomind {
 
-struct MedusaState {
-    int  index;
-    int  len;
-    int  verified_len;
-    bool inited;
 
-    friend std::ostream& operator<<(std::ostream& os, const MedusaState& medusa_state);
-};
 
 struct BatchState {
     int*  h_prompt_length;  // history + input, ignore generated
