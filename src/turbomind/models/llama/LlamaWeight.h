@@ -60,7 +60,6 @@ struct LlamaWeight {
     const T*                                 post_decoder_embedding_kernel{};
 
     std::unique_ptr<MedusaWeight<T>> medusa_weight;
-    bool                             medusa_enable_ = false;
 
     const MedusaWeight<T>& get_medusa_weight() const;
 
