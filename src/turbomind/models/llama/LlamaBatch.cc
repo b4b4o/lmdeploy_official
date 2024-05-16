@@ -1890,9 +1890,6 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
             h_medusa_cache_len_[i]        = state_->sequences[i]->cache_len;
             h_medusa_sequences_length_[i] = state_->sequences[i]->cache_len + 1;
             state_->sequences[i]->iter += 1;
-            if (h_medusa_cache_len_[i] >= h_seq_limit_len_[i]) {
-                state_->h_finished[i] = true;
-            }
         }
     }
 
