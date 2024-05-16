@@ -313,7 +313,6 @@ private:
     int  medusa_num_heads_ = 0;
     bool medusa_enable_    = false;
 
-    std::vector<MedusaState> medusa_state_vec_;
 
     // used for verification
     T*   medusa_inited_hidden_states_buf_{};  // updated in MedusaCopy
@@ -354,7 +353,6 @@ private:
 
     int* last_input_ids_buf_{};
 
-    int max_len_ = 0;
 
     // packed input length
     int medusa_input_length_ = 0;
