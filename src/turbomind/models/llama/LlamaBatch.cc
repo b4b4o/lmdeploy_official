@@ -1994,12 +1994,12 @@ void LlamaBatch<T>::MedusaVerify(const int inited_count, const int max_init_ctx_
     if (inited_count != 0) {
         if (medusa_logits_buf_ == nullptr) {
             NcclGuard guard(model_->tensor_para_, stream_, true);
-            medusa_logits_buf_ = (float*)allocator_->malloc(sizeof(float) * model_->vocab_size_padded_ * max_batch_size_);
+            medusa_logits_buf_ = (float*)allocator_->malloc(sizeof(float) * model_->vocab_size_padded_ * max_batch_size_ * medusa_input_length_);
             const auto tp      = model_->tensor_para_.world_size_;
             if (tp > 1) {
                 FT_CHECK(model_->vocab_size_padded_ % tp == 0);
                 medusa_local_logits_buf_ = (float*)allocator_->malloc(sizeof(float) * model_->vocab_size_padded_
-                                                                      * max_batch_size_);
+                                                                      * max_batch_size_ * medusa_input_length_);
             }
         }
 
@@ -2082,12 +2082,12 @@ void LlamaBatch<T>::MedusaGenerate(const int max_init_ctx_len,
 
     if (medusa_logits_buf_ == nullptr) {
         NcclGuard guard(model_->tensor_para_, stream_, true);
-        medusa_logits_buf_ = (float*)allocator_->malloc(sizeof(float) * model_->vocab_size_padded_ * max_batch_size_);
+        medusa_logits_buf_ = (float*)allocator_->malloc(sizeof(float) * model_->vocab_size_padded_ * max_batch_size_ * medusa_input_length_);
         const auto tp      = model_->tensor_para_.world_size_;
         if (tp > 1) {
             FT_CHECK(model_->vocab_size_padded_ % tp == 0);
             medusa_local_logits_buf_ = (float*)allocator_->malloc(sizeof(float) * model_->vocab_size_padded_
-                                                                  * max_batch_size_ );
+                                                                  * max_batch_size_ * medusa_input_length_);
         }
     }
     model_->postDecodeEmbedding(
