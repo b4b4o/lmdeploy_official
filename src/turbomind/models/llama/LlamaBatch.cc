@@ -2049,9 +2049,10 @@ void LlamaBatch<T>::MedusaVerify(const int inited_count, const int max_init_ctx_
         int inited_cnt = 0;
         for(int i = 0; i < batch_size; i++){
             if(state_->sequences[i]->iter == 0){
+                h_medusa_verified_length_[i] = 0;
                 continue;
             }else{
-                h_medusa_verified_length_[i] = h_medusa_max_match_idx_buf_[inited_cnt++];
+                h_medusa_verified_length_[i] = h_medusa_max_match_length_buf_[inited_cnt++];
             }
         }
         Copy(h_medusa_verified_length_, batch_size, medusa_verified_length_);
