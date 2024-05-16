@@ -1106,9 +1106,11 @@ LlamaBatch<T>::LlamaBatch(
 
     // todo: fix this to config.
     std::string medusa_path_filename = "/workdir/lmdeploy_official/src/turbomind/models/medusa_plugin/medusa_choices.info";
-    std::string aim_model_name = "mc_sim_7b_63";
+    // std::string aim_model_name = "mc_sim_7b_63";
+    std::string aim_model_name = "only_top1";
     medusa_utils_ = std::make_unique<MedusaUtils>(medusa_path_filename, aim_model_name);
     medusa_utils_->getInputLen(medusa_input_length_); // 64
+    std::cout << "[debugbzw] medusa_input_length_ = " << medusa_input_length_ << std::endl;
     medusa_utils_->getPathNum(medusa_path_num_);
 
     AllocateBuffer(max_batch_size_, session_len_);
@@ -2010,8 +2012,7 @@ void LlamaBatch<T>::MedusaVerify(const int inited_count, const int max_init_ctx_
                               medusa_logits_buf_,
                               state_->curand_state,
                               d_end_ids_buf_,
-                              medusa_token_ids_buf_,
-                              nullptr);
+                              medusa_token_ids_buf_);
 
         std::vector<int> inited_input_ids(medusa_input_length_ * inited_count, -1);
         std::vector<int> ref_output_ids(medusa_input_length_ * inited_count, -2);
@@ -2048,9 +2049,10 @@ void LlamaBatch<T>::MedusaVerify(const int inited_count, const int max_init_ctx_
         int inited_cnt = 0;
         for(int i = 0; i < batch_size; i++){
             if(state_->sequences[i]->iter == 0){
+                h_medusa_verified_length_[i] = 0;
                 continue;
             }else{
-                h_medusa_verified_length_[i] = h_medusa_max_match_idx_buf_[inited_cnt++];
+                h_medusa_verified_length_[i] = h_medusa_max_match_length_buf_[inited_cnt++];
             }
         }
         Copy(h_medusa_verified_length_, batch_size, medusa_verified_length_);
