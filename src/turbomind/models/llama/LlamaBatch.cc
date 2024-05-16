@@ -1398,7 +1398,7 @@ auto LlamaBatch<T>::Finish(GenerationState& g) -> std::vector<Signal>
         if((state_->h_context_length[i]) >= h_seq_limit_len_[i]){
             state_->h_finished[i] = true;
             //fixme: need check this, after combine KVCache modify.
-            state_->h_context_length[i] = h_seq_limit_len_[i];
+            // state_->h_context_length[i] = h_seq_limit_len_[i];
         }else{
             state_->h_finished[i] = false;
         }
