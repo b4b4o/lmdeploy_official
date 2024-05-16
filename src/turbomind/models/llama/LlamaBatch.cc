@@ -1347,7 +1347,7 @@ auto LlamaBatch<T>::Finish(GenerationState& g) -> std::vector<Signal>
                                medusa_max_match_length_buf_,
                                init_context_length_,
                                medusa_verified_packed_path_,
-                               max_context_len, //todo:figure out g.max_init_ctx_len
+                               max_context_len, 
                                g.step + medusa_input_length_,
                                session_len_,
                                batch_size - g.partial,
