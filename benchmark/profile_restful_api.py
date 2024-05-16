@@ -93,6 +93,7 @@ class Engine:
                 req_queue.get, [None, None, None]):
             timestamps = []
             timestamps.append(time.perf_counter())
+            print(f"input_seqlen = {input_seqlen}, limit_seqlen = {output_seqlen}")
             for output in client.chat_completions_v1(
                     model=self.model_name,
                     messages=prompt,

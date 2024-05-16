@@ -2010,8 +2010,7 @@ void LlamaBatch<T>::MedusaVerify(const int inited_count, const int max_init_ctx_
                               medusa_logits_buf_,
                               state_->curand_state,
                               d_end_ids_buf_,
-                              medusa_token_ids_buf_,
-                              nullptr);
+                              medusa_token_ids_buf_);
 
         std::vector<int> inited_input_ids(medusa_input_length_ * inited_count, -1);
         std::vector<int> ref_output_ids(medusa_input_length_ * inited_count, -2);
