@@ -599,6 +599,10 @@ void LlamaBatch<T>::Initialize(GenerationState& g)
         const int i = state_->active_size - 1;
         partial = state_->sequences[i]->cache_len + state_->sequences[i]->input_length != state_->h_context_length[i];
         if (partial) {
+            std::cout << "[debugbzw] !!!! partial" << std::endl;
+            std::cout << "state_->sequences[i]->cache_len = " << state_->sequences[i]->cache_len << std::endl;
+            std::cout << "state_->sequences[i]->input_length" << state_->sequences[i]->input_length << std::endl;
+            std::cout << "state_->h_context_length[i]" << state_->h_context_length[i] << std::endl;
             // backup full context length of partial
             partial_len = state_->h_context_length[i];
             // replace with partial context length
@@ -606,11 +610,17 @@ void LlamaBatch<T>::Initialize(GenerationState& g)
         }
     }
 
+    std::cout << "-------  Initialize start medusa_seq_length init ------" << std::endl;
     for (int i = 0; i < batch_size; i++) {
-        if (h_medusa_sequences_length_[i] == 0) {
+        // if (h_medusa_sequences_length_[i] == 0) { // fixme: 这里应该判断第一次。。不然会继承之前的值
+        std::cout << "batch " << i << ", state_->sequences[i]->iter = " << state_->sequences[i]->iter << std::endl;
+        if (state_->sequences[i]->iter == 0) { // fixme: 这里应该判断第一次。。不然会继承之前的值
+            std:: cout << "before h_medusa_sequences_length_[i] = "<< h_medusa_sequences_length_[i];
             h_medusa_sequences_length_[i] = state_->h_context_length[i];
+            std:: cout << ", after h_medusa_sequences_length_[i] = "<< h_medusa_sequences_length_[i] << std::endl;
         }
     }
+    std::cout << "-------  Initialize end medusa_seq_length init ------" << std::endl;
 
     int medusa_max_context_len = *std::max_element(h_medusa_sequences_length_, h_medusa_sequences_length_ + batch_size);
 
@@ -1151,9 +1161,16 @@ void LlamaBatch<T>::InitializeSampling(const GenerationState& g)
     sync_check_cuda_error();
 
     // seq_limit_len_, will be compared to `step` instead of `sequence_length`, so padding len should be accounted for
+    std::cout << "In InitializeSampling, h_seq_limit_len_ init start." << std::endl;
     for (int i = 0; i < batch_size; ++i) {
+        std::cout << "batch " << i  << ": ";
+        std::cout << "h_seq_limit_len_ before = " << h_seq_limit_len_[i]  << std::endl;
         h_seq_limit_len_[i] = state_->seq_len_limit[i] + (g.max_init_ctx_len - h_medusa_sequences_length_[i]);
+        std::cout << "h_seq_limit_len_ after = " << h_seq_limit_len_[i]  << std::endl;
+        std::cout << "其中, state_->seq_len_limit[i] = " << state_->seq_len_limit[i] << ", g.max_init_ctx_len = " << g.max_init_ctx_len << ", h_medusa_sequences_length_[i] = " << h_medusa_sequences_length_[i]  << std::endl;
+
     }
+    std::cout << "In InitializeSampling, h_seq_limit_len_ init end." << std::endl;
     Copy(h_seq_limit_len_, batch_size, seq_limit_len_);
 
     TensorMap inputs;
@@ -1394,17 +1411,23 @@ auto LlamaBatch<T>::Finish(GenerationState& g) -> std::vector<Signal>
     for (int i = 0; i < batch_size; ++i) {
             ++state_->h_context_length[i];
     }
+    std::cout << "[check finished start] --------------- " << std::endl;
     for(int i = 0; i < batch_size; i++){
-        if((state_->h_context_length[i]) >= h_seq_limit_len_[i]){
+        std::cout << "batch = " << i << ", ";
+        std::cout << "state_->h_context_length[i] = " << state_->h_context_length[i] <<  ", h_seq_limit_len_[i] = " << h_seq_limit_len_[i] << ", state_->seq_len_limit[i] = " << state_->seq_len_limit[i] << std::endl;
+        if((state_->h_context_length[i]) >= state_->seq_len_limit[i]){
             state_->h_finished[i] = true;
             //fixme: need check this, after combine KVCache modify.
-            state_->h_context_length[i] = h_seq_limit_len_[i];
+            state_->h_context_length[i] = state_->seq_len_limit[i];
+            std::cout << "[debugbzw] set h_finished = TRUE" << std::endl; 
         }else{
             state_->h_finished[i] = false;
         }
     }
-
-
+    std::cout << "[check finished end] --------------- " << std::endl;
+    if(g.partial){
+        std::cout << "batch_size = " << batch_size << ", g.partial = " << g.partial << std::endl;
+    }
     {  // set output tokens ids and sequence length
         int* output_ptr = h_output_ids_;
         for (int i = 0; i < batch_size - g.partial; ++i) {
@@ -1458,15 +1481,32 @@ auto LlamaBatch<T>::Finish(GenerationState& g) -> std::vector<Signal>
             TM_LOG_INFO("[Finish] slot %d, tokens [%s]", i, ss.str().c_str());
         }
     }
+    if (rank_ == 0) {
+        for (int i = 0; i < batch_size; ++i) {
+            std::stringstream ss;
+            ss << (i ? ", " : "") << "(context_length = " << state_->h_context_length[i] << ", finished = " << state_->h_finished[i] << ")";
+            std::vector<int> tokens(state_->h_context_length[i]);
+            Copy(state_->output_ids + i * session_len_, tokens.size(), tokens.data());
+            cudaStreamSynchronize(stream_);
+            for (const auto& t : tokens) {
+                ss << " " << t;
+            }
+            printf("[Finish] slot %d, tokens [%s]\n", i, ss.str().c_str());
+        }
+    }
 
 
     std::vector<Signal> signals;
     {
         NvtxScope _("stream_and_completion_signal");
         for (int i = 0; i < batch_size - g.partial; ++i) {
+            if(g.partial){
+                std::cout << "only batch = " << i << " to processed signals." << std::endl;
+            }
             if (state_->requests[i]) {
                 if (state_->h_finished[i]) {
                     // Interrupt finished sequences and move the request handle into the signal closure
+                    std::cout << "set Interrupt. batch = " << i << std::endl;
                     signals.push_back(Interrupt(i));
                     ++g.finished_count;
                 }
@@ -1838,7 +1878,7 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
         check_cuda_error(cudaStreamSynchronize(stream_));
 
 
-
+        std::cout << " =============================== " << std::endl;
         model_->forwardUnified(decoder_output_buf_ + first * model_->hidden_units_, // out
                                context_decoder_output_buf_,  // temp
                                context_decoder_input_buf_,   // temp
