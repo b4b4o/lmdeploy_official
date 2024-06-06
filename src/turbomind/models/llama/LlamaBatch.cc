@@ -1119,6 +1119,10 @@ LlamaBatch<T>::LlamaBatch(
 
     AllocateBuffer(max_batch_size_, session_len_, cache_block_seq_len);
     AllocatePersistantBuffer(max_batch_size_, cache_block_seq_len);
+
+    cudaEventCreate(&start_this_round);
+    cudaEventCreate(&end_this_round);
+    
 }
 
 template<typename T>
@@ -1515,7 +1519,6 @@ auto LlamaBatch<T>::Finish(GenerationState& g) -> std::vector<Signal>
         // recover full context length of partial
         state_->h_context_length[i] = g.partial_context_legnth;
     }
-
     return signals;
 }
 
@@ -1586,7 +1589,9 @@ void LlamaBatch<T>::InternalThreadEntry(int device_id)
     constexpr int request_interval = 1;
     long          request_counter  = 0;
 
+    init_time_Interval();
     while (1) {
+        get_time_Interval("no use round start", "round start");
         if (rank_ == 0) {
             const int  free_slot_count = max_batch_size_ - state_->size + g.finished_count;
             const bool is_empty        = (free_slot_count == max_batch_size_);
@@ -1628,8 +1633,10 @@ void LlamaBatch<T>::InternalThreadEntry(int device_id)
         if (state_->active_size) {
             for (int i = 0; i < step_length_; ++i) {
                 //
+                get_time_Interval("round start", "before Forward(g)");
                 auto cont = Forward(g, i);
                 //
+                get_time_Interval("after Forward(g)", "before Finish(g)");
                 if (auto signals = Finish(g); !signals.empty()) {
                     if (g.finished_count) {
                         // Finished requests and corresponding output tensors will be released when notified
@@ -1639,6 +1646,8 @@ void LlamaBatch<T>::InternalThreadEntry(int device_id)
                     }
                     SendSignals(std::move(signals));
                 }
+                get_time_Interval("-", "Finish(g) use time:");
+                printf("===============================================================\n\n");
                 if (!cont) {  // early exit
                     break;
                 }
@@ -1778,7 +1787,7 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
         }
     }
     offsets.push_back(active_size);
-
+    get_time_Interval("-", "before_forward minibatch");
     int inited_count = 0;
 
     // forward on mini-batches
@@ -1852,7 +1861,7 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
         Copy(enable_medusa_ptr, mini_batch_size, d_enable_medusa_);
         Copy(state_->h_context_length + first, mini_batch_size, medusa_context_length_begin_ + first);
         check_cuda_error(cudaStreamSynchronize(stream_));
-
+        get_time_Interval("-", "before forwardUnified");
         model_->forwardUnified(decoder_output_buf_ + first * model_->hidden_units_,  // out
                                context_decoder_output_buf_,                          // temp
                                context_decoder_input_buf_,                           // temp
@@ -1872,9 +1881,11 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
                                d_medusa_mask_,
                                d_enable_medusa_,  // according to init/first
                                medusa_input_len);
-
+        get_time_Interval("-", "after forwardUnified");
         if (medusa_enable_) {
+            
             MedusaCopy(mini_batch_size, first, inited_count);
+            get_time_Interval("-", "call MedusaCopy time:");
         }
 
         if (iter == 0) {
@@ -1887,8 +1898,13 @@ bool LlamaBatch<T>::Forward(GenerationState& g, int iter)
 
     bool medusa_should_stop{};
     if (medusa_enable_) {
+        
+        get_time_Interval("-", "-");
         MedusaVerify(inited_count, active_size);
+        get_time_Interval("-", "call MedusaCopy time:");
+
         MedusaGenerate(g.step, active_size, medusa_should_stop);
+        get_time_Interval("-", "call MedusaGenerate time:");
     }
 
     // `SequenceManager` needs real-time value of cache length

@@ -117,9 +117,25 @@ public:
         }
 
         FreeBuffer();
+        cudaEventDestroy(start_this_round);
+        cudaEventDestroy(end_this_round);
     }
 
     void Start();
+
+    void init_time_Interval()
+    {
+        cudaEventRecord(start_this_round, stream_);
+    }
+    void get_time_Interval(char* start_flag, char* end_flag)
+    {
+        cudaEventRecord(end_this_round, stream_);
+        cudaEventSynchronize(end_this_round);
+        cudaEventElapsedTime(&elapsedTime_, start_this_round, end_this_round);
+        printf("Time between [%s, %s] : %.2f ms \n", start_flag, end_flag, elapsedTime_);
+        cudaEventRecord(start_this_round, stream_);
+        cudaEventSynchronize(start_this_round);
+    }
 
 private:
     void InternalThreadEntry(int device_id);
@@ -355,6 +371,12 @@ private:
     int*                        d_medusa_ti_{};
     int*                        d_medusa_mask_{};
     int*                        d_enable_medusa_{};
+
+    cudaEvent_t start_this_round;
+    cudaEvent_t end_this_round;
+
+    float elapsedTime_;
+    
 };
 
 }  // namespace turbomind
